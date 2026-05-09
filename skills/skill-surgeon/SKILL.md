@@ -1,6 +1,6 @@
 ---
 name: skill-surgeon
-description: Safe surgical updates to existing AI skill files. Use when updating, modifying, or editing an existing skill file. Ensures only intended changes are made and unintended rewrites are detected and reverted. Also supports creating new skills (full skill-creator workflow). Trigger on: update skill, modify skill, edit skill file, change skill content, fix skill, improve skill, patch skill.
+description: "Safe surgical updates to existing AI skill files. Use when updating, modifying, or editing an existing skill file — ensures only intended changes are made and unintended rewrites are detected and reverted. Also supports creating new skills. Trigger phrases: update skill, modify skill, edit skill file, fix skill, improve skill, patch skill."
 ---
 
 # Skill Surgeon
