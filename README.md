@@ -11,10 +11,10 @@
 
 ```bash
 # Install all skills (Claude Code + Cursor, global)
-npx skills add darian-deng/agent-skills -g --all
+npx skills add darian-deng/agent-skills -g --all -y
 
 # Install a specific skill
-npx skills add darian-deng/agent-skills --skill skill-surgeon -g -a claude-code -a cursor
+npx skills add darian-deng/agent-skills --skill skill-surgeon -g -a claude-code -a cursor -y
 ```
 
 ---
@@ -30,7 +30,7 @@ npx skills add darian-deng/agent-skills --skill skill-surgeon -g -a claude-code 
 | | |
 |---|---|
 | **Trigger** | update skill, modify skill, edit skill file, fix skill, improve skill, patch skill |
-| **Install** | `npx skills add darian-deng/agent-skills --skill skill-surgeon -g` |
+| **Install** | `npx skills add darian-deng/agent-skills --skill skill-surgeon -g -y` |
 
 #### The Problem / 问题背景
 
