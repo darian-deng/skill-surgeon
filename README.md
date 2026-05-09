@@ -3,8 +3,8 @@
 **Surgical, safe updates for AI skill files.**  
 **AI Skill 文件的外科式安全更新工具。**
 
-[![Install](https://img.shields.io/badge/install-skills.sh-blue)](https://skills.sh/darian-deng/skill-surgeon)
-[![GitHub](https://img.shields.io/badge/github-darian--deng%2Fskill--surgeon-black)](https://github.com/darian-deng/skill-surgeon)
+[![Install](https://img.shields.io/badge/install-skills.sh-blue)](https://skills.sh/darian-deng/agent-skills)
+[![GitHub](https://img.shields.io/badge/github-darian--deng%2Fagent--skills-black)](https://github.com/darian-deng/agent-skills)
 
 ---
 
@@ -52,13 +52,16 @@ Works in Claude Code, Claude.ai, CI environments, everywhere.
 
 ```bash
 # Claude Code (global)
-npx skills add darian-deng/skill-surgeon -g -a claude-code
+npx skills add darian-deng/agent-skills -g -a claude-code
 
-# Or with all agents
-npx skills add darian-deng/skill-surgeon -g --all
+# Cursor (global)
+npx skills add darian-deng/agent-skills -g -a cursor
+
+# All agents at once
+npx skills add darian-deng/agent-skills -g --all
 ```
 
-One-click via skills.sh: [skills.sh/darian-deng/skill-surgeon](https://skills.sh/darian-deng/skill-surgeon)
+One-click via skills.sh: [skills.sh/darian-deng/agent-skills](https://skills.sh/darian-deng/agent-skills)
 
 ---
 
