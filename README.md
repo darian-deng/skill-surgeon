@@ -95,6 +95,43 @@ This skill was born from a real incident: during a large-scale skill refactoring
 
 ---
 
+### 📋 adr-manage
+
+**Manage Architecture Decision Records (ADR) for your project — create, supersede, index, list, search, and bootstrap from scratch.**
+
+**管理项目的架构决策记录（ADR）— 新建、替代（supersede）、索引、列出、搜索、从零初始化。**
+
+| | |
+|---|---|
+| **Trigger** | 新加 ADR, record a decision, supersede ADR, 初始化 ADR, bootstrap ADR, 重建索引, rebuild index, 列出 ADR, list ADR, 搜索 ADR, search ADR |
+| **Install** | `npx skills add darian-deng/agent-skills --skill adr-manage -g -y` |
+
+#### What it does / 功能
+
+Six sub-capabilities behind a single intent router:
+
+通过意图路由统一入口，包含六个子能力：
+
+| Sub-capability | Description | 说明 |
+|---|---|---|
+| **new** | Create a new ADR with auto-numbering (4-digit zero-padded) and Nygard template | 自动编号（四位零填充）+ Nygard 模板创建新 ADR |
+| **supersede** | Replace an old ADR with a new one — bidirectional links maintained | 用新 ADR 替代旧 ADR，自动维护双向链接 |
+| **index** | Rebuild `docs/adr/README.md` index table from ADR files | 从 ADR 文件重建索引表 |
+| **list** | List ADRs, optionally filtered by status | 按状态列出 ADR |
+| **grep** | Search ADR content by keyword | 按关键词搜索 ADR 内容 |
+| **bootstrap** | Initialize ADR system from scratch (directory + meta ADR + README) | 从零初始化 ADR 体系（目录 + meta ADR + README） |
+
+#### Design principles / 设计理念
+
+- **AI writes content, skill enforces structure** — numbering, templates, index, supersede links are all handled mechanically. AI focuses on the *why / what / consequences* of the decision.
+- **AI 负责内容，skill 负责结构** — 编号、模板、索引、supersede 链接全部机械化处理。AI 专注于决策的 *why / what / consequences*。
+- **Negative consequences cannot be empty** — a quality gate that forces thorough trade-off analysis.
+- **Negative consequences 不允许为空** — 强制进行充分的 trade-off 分析。
+- **ADRs are never deleted** — only superseded or deprecated, preserving full decision history.
+- **ADR 不删除** — 只能 supersede 或 deprecate，保留完整决策历史。
+
+---
+
 ## License
 
 MIT — skill-surgeon is based on [anthropics/skills skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator), with modifications.
