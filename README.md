@@ -14,12 +14,34 @@
 npx skills add darian-deng/agent-skills -g --all -y
 
 # Install a specific skill
-npx skills add darian-deng/agent-skills --skill skill-surgeon -g -a claude-code -a cursor -y
+npx skills add darian-deng/agent-skills --skill <skill-name> -g -y
 ```
 
 ---
 
 ## Skills
+
+### 🎯 optimize-claude-context
+
+**Manage your Claude Code context layer — CLAUDE.md, rules, and skills — so every token earns its place.**
+
+**管理 Claude Code 的 context 层 — CLAUDE.md、规则、skills — 让每一个 token 都物有所值。**
+
+| | |
+|---|---|
+| **Trigger** | set up Claude, initialize CLAUDE.md, audit rules, optimize context, add/remove/move rule, "my CLAUDE.md is too long" |
+| **Install** | `npx skills add darian-deng/agent-skills --skill optimize-claude-context -g -y` |
+
+Two workflows in one skill:
+
+- **audit-refactor** — Subagent deep-explores the codebase → health card → per-item proposals → diff preview → apply. Works for both new projects and existing bloated configs.
+- **add-rule** — Verifies against codebase (duplicates, conflicts, lint coverage, phantom deps) → pushes back boldly → proposes location + phrasing → diff preview → apply.
+
+Core ideas: decision tree (CLAUDE.md → path-scoped rules → skills), mechanism selection (linter/hooks first, context layer last), 15 writing principles, 100–150 line budget.
+
+→ [Full README](skills/optimize-claude-context/README.md)
+
+---
 
 ### ✂️ skill-surgeon
 
