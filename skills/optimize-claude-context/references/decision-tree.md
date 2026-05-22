@@ -90,7 +90,9 @@ explicitly invokes `/<skill-name>`.
 - **Directory name:** kebab-case, matching the `name` field in frontmatter.
 - **`description` field:** the primary trigger — write it "pushy" enough to
   cover realistic user phrasings. Include both what the skill does AND specific
-  trigger phrases.
+  trigger phrases. **Hard limit: ≤ 50 words.** The description is loaded into
+  every session as part of the available-skills list; a long description wastes
+  context budget and degrades triggering accuracy.
 - **Body:** imperative instructions, < 500 lines ideal.
 - **`references/` subdirectory:** for content that exceeds ~200 lines in the
   SKILL.md body. The SKILL.md references these files with prose paths; the agent

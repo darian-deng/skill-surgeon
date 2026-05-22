@@ -86,11 +86,13 @@ These apply across all four workflows.
 ### Decision tree — where content belongs
 
 ```
-Does Claude need this in EVERY session?
-├─ Yes → ./CLAUDE.md (root, single file, no subdirectory CLAUDE.md)
-└─ No  → Can a file-path glob trigger it, with low collateral damage?
-         ├─ Yes → ./.claude/rules/<name>.md (with paths: frontmatter)
-         └─ No  → ./.claude/skills/<name>/SKILL.md (semantic trigger)
+Could linter / formatter / hooks / config enforce this?
+├─ Yes → Graduate to toolchain. See Mechanism selection protocol below.
+└─ No  → Does Claude need this in EVERY session?
+         ├─ Yes → ./CLAUDE.md (root, single file, no subdirectory CLAUDE.md)
+         └─ No  → Can a file-path glob trigger it, with low collateral damage?
+                  ├─ Yes → ./.claude/rules/<name>.md (with paths: frontmatter)
+                  └─ No  → ./.claude/skills/<name>/SKILL.md (semantic trigger)
 ```
 
 Hard constraints:

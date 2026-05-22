@@ -270,6 +270,9 @@ For each report in `.claude/init-progress/*.md` (excluding backup-compare-* file
 
 *Skill candidates:*
 - Merge semantic duplicates; re-verify ≥ 3/4 criteria
+- For each survivor, draft a `description` field (the trigger). **Hard limit:
+  ≤ 50 words.** If your draft exceeds this, cut until it fits — the description
+  loads into every session and long ones degrade triggering accuracy.
 - Survivors → append to `.claude/init-draft/skill-scaffolds.md`
 
 **Cross-layer deduplication (run after all reports are merged, before writing
