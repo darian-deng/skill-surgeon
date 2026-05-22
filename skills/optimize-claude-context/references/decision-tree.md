@@ -52,10 +52,15 @@ paths:
 **Put here when:**
 
 - The rule applies only when Claude is working with files matching a specific
-  glob pattern.
+  glob pattern, **and** the glob fires with low collateral damage — i.e., it
+  triggers only in situations where the rule is genuinely relevant.
 - Examples: "React component conventions" scoped to `**/*.tsx`, "API design
   rules" scoped to `src/api/**/*`, "Terraform conventions" scoped to
   `infra/**/*`.
+- Counter-example (use a skill instead): "When adding user-facing text, add i18n
+  keys to `locales/`" scoped to `**/*.tsx` — the glob fires on every tsx change,
+  even unrelated refactors. The intent is semantic ("adding user-facing text"),
+  not file-path-triggered.
 
 **Monorepo pattern:**
 
@@ -101,6 +106,7 @@ direction**:
 | Every-session fact buried in a path-scoped rule | Migrate to CLAUDE.md |
 | Procedural workflow in a rule (no path trigger makes sense) | Migrate to a skill |
 | Path-scoped content in CLAUDE.md wasting every-session budget | Migrate to a rule with `paths:` |
+| Path rule whose glob fires in many irrelevant situations (high collateral damage) | Migrate to a skill |
 
 ## Out of scope: user-level rules
 

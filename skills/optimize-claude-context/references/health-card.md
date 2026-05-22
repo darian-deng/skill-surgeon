@@ -134,5 +134,11 @@ Rule/Skill Summary — <file path>
   Overlaps with CLAUDE.md: <N> items → deduplicate
   Overlaps with toolchain: <N> items → graduation candidates
   Stale references:        <N> items → verify
+  [rules only]
+  Collateral damage:       <low / high — glob fires in many irrelevant
+                            situations → consider converting to skill>
+  [skills only]
+  Trigger accuracy:        <accurate / stale — description no longer matches
+                            current project patterns or tool names>
 ──────────────────────────────────────────────
 ```

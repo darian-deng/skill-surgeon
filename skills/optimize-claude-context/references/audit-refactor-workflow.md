@@ -48,6 +48,13 @@ explore the codebase.
   consolidation candidate.
 - **Rule frontmatter check:** For each `.claude/rules/*.md`, note whether it
   has a `paths:` field. Rules without `paths:` load unconditionally.
+- **Skill deep-read:** For each `.claude/skills/*/SKILL.md`, read the full
+  file and check: (a) does the `description` trigger still accurately reflect
+  what the skill does and when it should fire, given the current project? (b)
+  does the body reference tools, paths, or workflows that no longer exist in
+  the codebase? (c) is the skill's intended trigger better expressed as a
+  path-scoped rule (low collateral damage possible) — or vice versa, is a rule
+  that fires too broadly better moved here?
 
 ### Source sampling
 
@@ -188,6 +195,16 @@ When proposing a new skill scaffold, include:
 - Draft `description` (semantic trigger — pushy enough to cover realistic
   phrasings).
 - Outline of the SKILL.md body content.
+- A note that after the user confirms, actual creation should be handed off
+  to `skill-creator`, which provides the full workflow: eval loop, test
+  cases, and description optimization. This skill decides the layer;
+  skill-creator builds the content.
+
+When proposing an update to an existing skill (stale content, inaccurate
+trigger, layer migration), flag that the edit should be performed via
+`skill-surgeon` to preserve unintended-rewrite protection. Include the
+specific change as a concrete before/after diff so the user can hand it to
+skill-surgeon directly.
 
 ## Phase 5 — User review
 

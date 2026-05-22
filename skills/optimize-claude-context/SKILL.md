@@ -41,6 +41,21 @@ Do not read, modify, or propose changes to Claude auto memory
 `AGENTS.md`, `.cursorrules`, or other non-Claude agent configs — note their
 existence during audit but keep them out of scope.
 
+## Dependencies
+
+This skill delegates to two external skills at specific points. Check whether
+they appear in your `available_skills` before starting either workflow:
+
+| Skill | Purpose | Install |
+|---|---|---|
+| `skill-creator` | Full creation workflow for new skills (eval loop, description optimization) | `npx skills add anthropics/skills --skill skill-creator -g -y` |
+| `skill-surgeon` | Safe surgical updates to existing skills (Edit-only, before/after verified) | `npx skills add darian-deng/agent-skills --skill skill-surgeon -g -y` |
+
+**If a required skill is missing:** stop, explain what the skill does and why
+it is needed at this point, give the install command, and wait for the user to
+confirm installation before continuing. Do not proceed without it — skipping
+the dependency produces lower-quality output without the user realizing it.
+
 ## Core philosophy
 
 Context is the scarcest resource in an AI coding session. Every line loaded into
@@ -56,7 +71,7 @@ mistake it wouldn't otherwise make?"_ If no, cut it.
 ```
 Does Claude need this in EVERY session?
 ├─ Yes → ./CLAUDE.md (root, single file, no subdirectory CLAUDE.md)
-└─ No  → Can a file-path glob trigger it?
+└─ No  → Can a file-path glob trigger it, with low collateral damage?
          ├─ Yes → ./.claude/rules/<name>.md (with paths: frontmatter)
          └─ No  → ./.claude/skills/<name>/SKILL.md (semantic trigger)
 ```
@@ -68,6 +83,12 @@ Hard constraints:
   loading. Flag existing `@import` as improvement candidates.
 - **Monorepo isolation via paths-scoped rules.** Different sub-packages get
   separate rule files scoped by `paths:`, all inside `./.claude/rules/`.
+- **Low collateral damage for path rules.** A path rule fires whenever any
+  matching file is touched — regardless of whether the task is actually relevant
+  to the rule. When the glob match is semantically too broad (e.g., a rule about
+  "add i18n keys when adding user-facing text" scoped to `**/*.tsx` fires on
+  every tsx change, even unrelated refactors), the content belongs in a skill,
+  not a rule.
 
 For detailed layer descriptions, frontmatter format, known `paths:` issues, and
 monorepo patterns, read
@@ -98,6 +119,11 @@ one-liners earn their place.
 ## Two workflows
 
 Detect which workflow the user needs from their prompt.
+
+**Dependency check (run once before starting either workflow):** Check whether
+`skill-creator` and `skill-surgeon` appear in your `available_skills`. If
+either is missing, follow the guidance in the Dependencies section above before
+proceeding.
 
 **Proactive detection:** If you notice bloat, wrong-layer content, or
 linter-enforceable rules in a project's CLAUDE.md while working on an unrelated

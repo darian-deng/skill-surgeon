@@ -103,6 +103,16 @@ Present the proposal:
   most critical for the project, add it to both `# CRITICAL — Read first` and
   `# CRITICAL — Read last` sections.
 
+**When the decision tree routes to a skill:**
+
+- If creating a **new** skill: present the scaffold (name, description, body
+  outline) and note that after the user confirms, execution should be handed off
+  to `skill-creator` for the full creation workflow (eval loop, test cases,
+  description optimization). Do not attempt to fully build the skill here.
+- If updating an **existing** skill: present the specific change as a
+  before/after diff and note that the edit should be performed via
+  `skill-surgeon` to prevent unintended rewrites.
+
 ## Step 6 — Remove / demote workflow
 
 When the user wants to **remove** a rule:
