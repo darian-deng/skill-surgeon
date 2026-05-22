@@ -24,7 +24,16 @@ Phase 7 — Read scaffolds + backup approvals → apply → cleanup → verify �
 
 ## Phase 0 — Check for existing artifacts
 
-Scan before any exploration:
+**Dependency check (filesystem — do not rely on available_skills context):**
+
+```bash
+ls ~/.claude/skills/skill-creator/ 2>/dev/null || ls ~/.agents/skills/skill-creator/ 2>/dev/null
+ls ~/.claude/skills/skill-surgeon/ 2>/dev/null || ls ~/.agents/skills/skill-surgeon/ 2>/dev/null
+```
+
+If either is missing, stop and give the user the install command before continuing.
+
+**Artifact scan:**
 
 ```bash
 find . -maxdepth 1 -name "CLAUDE.md" 2>/dev/null
@@ -131,17 +140,25 @@ Entry points → largest files per major directory → 2–3 test files → READ
 CONTRIBUTING.md. While reading source, actively look for multi-step workflows where a
 developer must touch multiple files in a specific order.
 
-**Also check:** does `docs/adr/README.md` (or `docs/decisions/README.md`) exist? Record
-it — if it exists, CLAUDE.md must not duplicate an ADR index.
+**Also check:** does `<project-root>/docs/adr/README.md` exist? (Always the
+project root, regardless of monorepo structure.) If it exists, CLAUDE.md must
+not duplicate an ADR index.
 
-**Mechanism selection filter — apply to every candidate:**
-Step 1: Could linter/formatter/hooks enforce this with one config addition, even if not
-        currently configured?
+**Layer routing — route by CONTENT TYPE, then by triggering:**
+
+Step 0: Is this explanatory rationale ("why we chose X")?
+        → Yes → flag as ADR candidate; do NOT put in CLAUDE.md, rules, or skills
+Step 1: Could linter/formatter/hooks enforce this with one config addition?
         → Yes → graduation candidate (not a context-layer rule)
 Step 2: If removed from context, would Claude make a mistake it otherwise wouldn't?
         → No → drop it
-        → Yes → decision tree: every session → CLAUDE.md; path-triggerable low
-                collateral damage → path rule; semantic trigger only → skill
+        → Yes → route by content type:
+          - Global behavioral rule (every session) → CLAUDE.md
+          - Lookup/reference table for specific file types → path rule
+          - Multi-step procedure (sequential, order matters) → skill
+
+**Each concern lives in exactly ONE layer.** If a topic has both lookup content
+and procedural content, split into non-overlapping aspects with distinct names.
 
 **Skill criteria — list only if meeting ≥ 3 of 4. When uncertain, mark Y:**
 1. Sequential + ordered: specific sequence required; wrong order breaks things
@@ -254,6 +271,22 @@ For each report in `.claude/init-progress/*.md` (excluding backup-compare-* file
 *Skill candidates:*
 - Merge semantic duplicates; re-verify ≥ 3/4 criteria
 - Survivors → append to `.claude/init-draft/skill-scaffolds.md`
+
+**Cross-layer deduplication (run after all reports are merged, before writing
+any draft file):**
+
+Group all candidates by TOPIC. For any topic appearing in candidates for more
+than one layer, apply the content-type test to choose exactly one:
+- Is it explanatory rationale? → ADR candidate, remove from all context layers
+- Is it a global behavioral command (always/never)? → CLAUDE.md
+- Is it a lookup/reference table? → path rule
+- Is it a sequential procedure? → skill
+
+Remove the duplicate from the losing layer. If genuinely different aspects of
+the same topic belong in different layers, rename them to make the distinction
+explicit (e.g., "logging-conventions" for the rule, "add-new-logger" for the
+skill). The goal: no user reading the output should find the same concern
+addressed in two different files.
 
 *Missing modules:* note in `.claude/init-uncertainties.md` under Missing coverage
 

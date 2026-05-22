@@ -1,6 +1,27 @@
 # Decision Tree — Where Content Belongs
 
-## The three layers
+## Four-layer content model
+
+Route by content TYPE, not just by triggering. Each concern lives in exactly
+one layer — never duplicated.
+
+| Layer | Content type | Loaded |
+|---|---|---|
+| ADR (`docs/adr/`) | Rationale — "why we chose X" | On demand, by humans |
+| CLAUDE.md | Global behavioral rules — always/never do X | Every session, unconditionally |
+| Path rule | Lookup/reference table — conventions for specific file types | When touching matching files |
+| Skill | Multi-step procedure — workflow to execute | When user intent matches |
+
+**Mutual exclusivity:** if a topic appears in candidates for multiple layers,
+choose the one that best matches its content type. The same concern cannot live
+in both a rule and a skill. If a topic genuinely has both lookup content AND
+procedural content, split them into non-overlapping aspects with distinct names.
+
+**ADR is not a context-layer artifact.** This skill does not manage `docs/adr/`.
+When content is explanatory rationale ("why we chose X"), flag it for `adr-manage`
+and do not add it to CLAUDE.md, rules, or skills.
+
+## The three context-layer artifacts
 
 ### Layer 1: Root CLAUDE.md
 
@@ -81,9 +102,14 @@ explicitly invokes `/<skill-name>`.
 
 **Put here when:**
 
-- The content cannot be triggered by a file-path glob.
-- Examples: "API design workflow", "migration script procedure", "code review
-  checklist", "onboarding documentation guide".
+- The content is a **multi-step procedure** a developer needs to execute — not
+  a lookup table, not a behavioral rule, but a sequential workflow with order
+  that matters.
+- The content cannot be triggered by a file-path glob OR the glob would fire
+  too broadly (high collateral damage).
+- Examples: "adding a new IPC endpoint (touches 4 files in order)", "release
+  checklist", "migration procedure", "onboarding sequence".
+- NOT for: conventions, lookup tables, or reference docs — those are rules.
 
 **Skill scaffold conventions:**
 
@@ -107,6 +133,8 @@ direction**:
 | Procedural workflow in a rule (no path trigger makes sense) | Migrate to a skill |
 | Path-scoped content in CLAUDE.md wasting every-session budget | Migrate to a rule with `paths:` |
 | Path rule whose glob fires in many irrelevant situations (high collateral damage) | Migrate to a skill |
+| Same concern appearing in both a rule AND a skill | Keep only the better-fit layer; remove the duplicate |
+| Explanatory rationale ("why we chose X") in CLAUDE.md or a rule | Migrate to ADR (use adr-manage) |
 
 ## Out of scope: user-level rules
 

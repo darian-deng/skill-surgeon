@@ -43,7 +43,13 @@ their existence but keep them out of scope.
 
 ## Dependencies
 
-Check `available_skills` before starting any workflow:
+Check installation via filesystem before starting any workflow — more reliable
+than `available_skills` context:
+
+```bash
+ls ~/.claude/skills/skill-creator/ 2>/dev/null || ls ~/.agents/skills/skill-creator/ 2>/dev/null
+ls ~/.claude/skills/skill-surgeon/ 2>/dev/null || ls ~/.agents/skills/skill-surgeon/ 2>/dev/null
+```
 
 | Skill | When needed | Install |
 |---|---|---|
@@ -79,12 +85,24 @@ These apply across all four workflows.
 
 ### Decision tree — where content belongs
 
+Route by **content type** first, then by triggering. Each concern lives in
+**exactly one layer** — never duplicated across multiple artifacts.
+
+| Content type | Layer |
+|---|---|
+| Rationale — "why we chose X" | ADR (`docs/adr/`) — use `adr-manage`, not a context-layer artifact |
+| Global behavioral rule — always/never do X | `./CLAUDE.md` |
+| Lookup/reference for specific file types — passive, no workflow | `./.claude/rules/<name>.md` |
+| Multi-step procedure — sequential, intent-triggered | `./.claude/skills/<name>/SKILL.md` |
+
 ```
-Does Claude need this in EVERY session?
-├─ Yes → ./CLAUDE.md (root, single file, no subdirectory CLAUDE.md)
-└─ No  → Can a file-path glob trigger it, with low collateral damage?
-         ├─ Yes → ./.claude/rules/<name>.md (with paths: frontmatter)
-         └─ No  → ./.claude/skills/<name>/SKILL.md (semantic trigger)
+Is this explanatory rationale ("why we chose X")?
+├─ Yes → ADR (docs/adr/) — not a context-layer item
+└─ No  → Does Claude need this as a behavioral rule in EVERY session?
+         ├─ Yes → ./CLAUDE.md
+         └─ No  → Is this a lookup/reference table for specific file types?
+                  ├─ Yes → ./.claude/rules/<name>.md (with paths: frontmatter)
+                  └─ No  → ./.claude/skills/<name>/SKILL.md (workflow)
 ```
 
 Hard constraints:
@@ -98,6 +116,10 @@ Hard constraints:
   matching file is touched — regardless of whether the task is relevant to the
   rule. When the glob match is semantically too broad, the content belongs in a
   skill, not a rule.
+- **Mutual exclusivity.** The same concern cannot appear in more than one layer.
+  If logging has both reference content (conventions) and procedural content
+  (how to add a new log call), split into a rule for the reference AND a skill
+  for the procedure — but they must cover different, non-overlapping aspects.
 
 For detailed layer descriptions, frontmatter format, known `paths:` issues, and
 monorepo patterns, read [decision-tree.md](decision-tree.md).

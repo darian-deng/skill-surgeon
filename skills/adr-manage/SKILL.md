@@ -36,7 +36,7 @@ description: 管理项目的 Architecture Decision Records (ADR)：新建、supe
 | new / supersede / index / list / grep | `docs/adr/` 目录存在？不存在 → 提示用户先调 bootstrap |
 | bootstrap | `docs/adr/` 已存在？已存在 → 提示用户改用 index 重建 |
 
-`docs/adr/` 路径**默认是仓库根目录下**。如项目是 monorepo 且改动只涉及某子目录，应使用该子目录的 `docs/adr/`（与改动所在目录的最深公共祖先一致）。
+`docs/adr/` 路径**始终是仓库根目录下**，无论是否 monorepo，无论改动涉及哪个子目录。固定路径避免认知歧义——ADR 记录的是项目级决策，不是包级决策。
 
 ---
 
