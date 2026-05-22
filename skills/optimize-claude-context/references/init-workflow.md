@@ -11,13 +11,13 @@ Phase 0 — Check for existing artifacts
   → Found, choice A  → delete → Phase 1
   → Found, choice B  → backup to ./claude-context-backup/ → Phase 1 → Phase 4
 
-Phase 1 — Scale detection → N module scopes + create working dirs
+Phase 1 — Scale detection → N module scopes + slug map + create working dirs
 Phase 2 — N parallel subagents → N reports in .claude/init-progress/
-Phase 3 — Read reports one at a time, write draft to .claude/init-draft/ + uncertainties
-Phase 4 — (rebuild only) Parallel backup comparison → .claude/init-progress/backup-compare-*.md
-Phase 5 — Health check subagent → draft refinements
+Phase 3 — Bootstrap draft → read reports one at a time → .claude/init-draft/ + uncertainties
+Phase 4 — (rebuild only) Batched backup comparison → .claude/init-progress/backup-compare-*.md
+Phase 5 — Health check subagent → inline health card → draft refinements
 Phase 6 — STOP. Present to user. Wait for explicit confirmation.
-Phase 7 — Apply confirmed files only after Phase 6 confirmation received.
+Phase 7 — Read scaffolds + backup approvals → apply → cleanup → verify → skill handoff
 ```
 
 ---
@@ -30,15 +30,20 @@ Scan before any exploration:
 find . -maxdepth 1 -name "CLAUDE.md" 2>/dev/null
 find .claude/rules -name "*.md" 2>/dev/null
 find .claude/skills -name "SKILL.md" 2>/dev/null
-ls docs/adr/ 2>/dev/null | head -5
+[ -d docs/adr ] && echo "docs/adr/ exists" || true
+find . -maxdepth 1 \( -name "AGENTS.md" -o -name ".cursorrules" \) 2>/dev/null
 ```
 
-**If nothing found:** proceed to Phase 1.
+Note: AGENTS.md and .cursorrules are out of scope for this skill — detect and mention
+to user, but do not modify.
+
+**If nothing found (excluding AGENTS.md / .cursorrules):** proceed to Phase 1.
 
 **If anything found:** stop and ask the user:
 
 > I found existing context artifacts:
 > - [list each: e.g., CLAUDE.md (87 lines), .claude/rules/api.md, .claude/skills/deploy/]
+> - [if AGENTS.md or .cursorrules exist: note them as out of scope]
 >
 > How do you want to proceed?
 > **(A) Delete and start fresh** — remove all existing artifacts, build new from scratch
@@ -47,9 +52,14 @@ ls docs/adr/ 2>/dev/null | head -5
 >
 > If unsure, B is safer — nothing is deleted.
 
-- **(A) confirmed:** confirm once ("About to delete: [list]. Proceed?") → delete → Phase 1
+- **(A) confirmed:** confirm once showing exact commands, then execute:
+  ```bash
+  rm -f CLAUDE.md
+  rm -rf .claude/rules/ .claude/skills/
+  ```
+  Then proceed to Phase 1.
 - **(B) confirmed:** move all found artifacts to `./claude-context-backup/` preserving
-  directory structure → Phase 1 (backup comparison happens in Phase 4, after draft exists)
+  directory structure → Phase 1 (backup comparison in Phase 4, after draft exists)
 - **Unclear:** ask again. Never guess.
 
 ---
@@ -57,9 +67,12 @@ ls docs/adr/ 2>/dev/null | head -5
 ## Phase 1 — Scale detection
 
 Read these files to understand project structure:
-- `pnpm-workspace.yaml`, `go.work`, `turbo.json`, `nx.json`, `lerna.json`
-- `package.json` (workspaces field)
+- Workspace config: `pnpm-workspace.yaml`, `go.work`, `turbo.json`, `nx.json`,
+  `lerna.json`, `package.json` (workspaces field), `Cargo.toml` ([workspace] section)
 - Top-level `ls -la`
+
+If none of the above files indicate a multi-package structure, treat as single package
+regardless of language. Set MODULE_PATH to `.` (project root).
 
 Determine subagent count and scope:
 
@@ -72,22 +85,26 @@ Determine subagent count and scope:
 
 For each scope record: module path + primary stack (from manifest).
 
-**Module slug convention:** replace all slashes in the module path with hyphens,
-lowercase. Example: `apps/plaud-desktop` → `apps-plaud-desktop`.
+**Module slug convention:** replace all slashes with hyphens, lowercase.
+Example: `apps/plaud-desktop` → `apps-plaud-desktop`.
+
+**Uniqueness check:** after generating all slugs, verify no two are identical. If any
+collide (e.g., `apps/api` and a root-level `apps-api` both yield `apps-api`), append
+`-2`, `-3`, etc. to disambiguate. Record the final MODULE_PATH → MODULE_SLUG mapping.
 
 Create working directories now:
 
 ```bash
 mkdir -p .claude/init-progress
 mkdir -p .claude/init-draft/rules
+touch .claude/init-uncertainties.md
 ```
 
 ---
 
 ## Phase 2 — Parallel deep exploration
 
-Dispatch **all N subagents concurrently in the same turn.** Do not wait for one
-before starting the next.
+Dispatch **all N subagents concurrently in the same turn.**
 
 **Full subagent prompt** (fill `MODULE_PATH`, `STACK`, `N_MODULES`, `MODULE_SLUG`):
 
@@ -98,43 +115,42 @@ codebase scan. `N_MODULES` modules are running in parallel.
 
 Your output must be written to `.claude/init-progress/MODULE_SLUG.md`.
 
-**TRACK A — Config files (read every config file in FULL — no truncation):**
+**TRACK A — Config files (read every config file in FULL into your context — no
+truncation, no skimming). The 200-line limit below applies to your OUTPUT REPORT,
+not to what you read:**
 Linter: `eslint.config.*`, `.eslintrc*`, `ruff.toml`, `pyproject.toml [tool.ruff]`,
 `clippy.toml`. Formatter: `.prettierrc*`, `rustfmt.toml`, `.editorconfig`. Hooks:
 `.husky/*`, `.pre-commit-config.yaml`. Type checker: `tsconfig*.json`, `mypy.ini`,
 `pyrightconfig.json`. Build: `Makefile`, `justfile`, `package.json` scripts section.
 
-Do NOT truncate these files. Linter rules are scattered — a partial read causes
-wrong conclusions about what is already enforced.
+The 200-line report cap means: summarize what you found, do not copy config file
+contents verbatim into the report.
 
 **TRACK B — Source files (~20 files):**
 Entry points → largest files per major directory → 2–3 test files → README.md,
-CONTRIBUTING.md. While reading source, actively look for multi-step workflows
-where a developer must touch multiple files in a specific order (these are skill
-candidates).
+CONTRIBUTING.md. While reading source, actively look for multi-step workflows where a
+developer must touch multiple files in a specific order.
 
-**Also check:** does `docs/adr/README.md` (or `docs/decisions/README.md`) exist?
-Record it — if so, CLAUDE.md should not include an ADR index.
+**Also check:** does `docs/adr/README.md` (or `docs/decisions/README.md`) exist? Record
+it — if it exists, CLAUDE.md must not duplicate an ADR index.
 
 **Mechanism selection filter — apply to every candidate:**
-Step 1: Could linter/formatter/hooks enforce this with one config addition, even
-        if not currently configured?
+Step 1: Could linter/formatter/hooks enforce this with one config addition, even if not
+        currently configured?
         → Yes → graduation candidate (not a context-layer rule)
 Step 2: If removed from context, would Claude make a mistake it otherwise wouldn't?
         → No → drop it
-        → Yes → decision tree:
-          - Every session → CLAUDE.md candidate
-          - Path-triggerable, low collateral damage → path rule candidate
-          - Semantic trigger only → skill candidate
+        → Yes → decision tree: every session → CLAUDE.md; path-triggerable low
+                collateral damage → path rule; semantic trigger only → skill
 
-**Skill candidate criteria — list only if meeting ≥ 3 of 4. When uncertain, mark Y:**
-1. Sequential + ordered: steps must happen in a specific sequence; wrong order breaks things
-2. Cross-cutting: touches multiple files/systems not capturable by one path glob
-3. Knowledge-heavy: requires WHY that is not readable from the code itself
-4. Rare but critical: not needed in every session, but mistakes are costly
+**Skill criteria — list only if meeting ≥ 3 of 4. When uncertain, mark Y:**
+1. Sequential + ordered: specific sequence required; wrong order breaks things
+2. Cross-cutting: multiple files/systems, not one path glob
+3. Knowledge-heavy: WHY not readable from the code
+4. Rare but critical: not every session, but mistakes are costly
 
-**Write your output to `.claude/init-progress/MODULE_SLUG.md` in this exact format.
-Keep total output under 200 lines — prioritize highest-impact items per section.**
+**Write output to `.claude/init-progress/MODULE_SLUG.md`. Keep under 200 lines —
+prioritize highest-impact items.**
 
 ```
 # Module Report: MODULE_PATH
@@ -164,7 +180,7 @@ Keep total output under 200 lines — prioritize highest-impact items per sectio
 ### <kebab-case-name>
 - Trigger: "<what user says>"
 - Criteria: sequential=Y/N, cross-cutting=Y/N, knowledge-heavy=Y/N, rare-critical=Y/N
-- Description: <one sentence: what multi-step workflow this guides the agent through>
+- Description: <one sentence: what multi-step workflow this guides through>
 
 ## ADR / docs index check
 - docs/adr/README.md: <exists / missing>
@@ -175,68 +191,79 @@ Keep total output under 200 lines — prioritize highest-impact items per sectio
 - <item>: <what is uncertain and why>
 ```
 
-After writing the file, return exactly this line to the main agent:
-`DONE: MODULE_SLUG.md written (<N> lines)`
+If you cannot write the file for any reason, return:
+`FAILED: MODULE_SLUG — reason: <one sentence>`
+Do not return DONE unless the file is fully written.
+
+After writing, return: `DONE: MODULE_SLUG.md written (<N> lines)`
 
 ---
 
-**After all subagents return:** verify files exist before Phase 3.
+**After all subagents return:** verify before Phase 3:
 
 ```bash
 ls .claude/init-progress/*.md
 ```
 
-If a module's file is missing despite the subagent reporting success, treat it
-as a failure: add "Module MODULE_PATH: file not written — manual review needed"
-to `.claude/init-uncertainties.md`.
+If a module file is missing (absent or subagent returned FAILED), append to
+`.claude/init-uncertainties.md`: `- [ ] Module MODULE_PATH: not explored — review manually.`
 
 ---
 
 ## Phase 3 — Aggregation
 
-**Do not load all reports into context simultaneously.** Process one report at a
-time. After processing each report, write the current draft state to disk before
-reading the next report. This prevents context overflow and preserves progress
-if something fails.
+**Bootstrap draft files before reading any report:**
 
-For each report in `.claude/init-progress/*.md`:
+```bash
+printf "# CLAUDE.md\n\n" > .claude/init-draft/CLAUDE.md
+printf "# Skill Scaffolds\n\n" > .claude/init-draft/skill-scaffolds.md
+```
+
+**Do not load all reports into context simultaneously.** Process one at a time.
+After each report, write updated draft to disk before reading the next. This prevents
+context overflow and preserves progress.
+
+For each report in `.claude/init-progress/*.md` (excluding backup-compare-* files):
 
 1. Read the report
-2. Merge its candidates into the draft (see rules below)
-3. Write current state of affected draft files to `.claude/init-draft/`
-4. Read the next report
+2. Merge its candidates (rules below)
+3. Write updated draft state to `.claude/init-draft/`
+4. Read next report
 
 **Merge rules:**
 
 *CLAUDE.md candidates:*
-- Group semantically similar candidates → keep best phrasing (imperative, positive, with rationale)
-- Contradictions across modules (A says "use X", B says "avoid X") → add to uncertainties
+- Group semantically similar candidates → keep best phrasing
+- **First module:** write its rules to the draft without any contradiction check —
+  the draft is empty at this point. Contradiction checks apply only when merging
+  subsequent modules against already-written draft content.
+- **Contradiction handling:** if Module B contradicts a rule already written from
+  Module A — (1) find the rule in `.claude/init-draft/CLAUDE.md` and replace it with
+  `<!-- CONTRADICTION: <topic> — both positions in uncertainties, see below -->`;
+  (2) add both positions to `.claude/init-uncertainties.md` under Contradictions
 - Apply decision tree: genuinely every-session? If contextual → demote to path rule
 
 *Path rule candidates:*
-- Group by domain area (auth, api, ui, build, testing, etc.) → one file per domain
+- Group by domain (auth, api, ui, build, testing, etc.) → one file per domain:
+  `.claude/init-draft/rules/<domain>.md`
 - Merge candidates sharing the same `paths:` glob
-- Collateral damage check: if glob fires on many unrelated changes → move to skill
+- Collateral damage check: glob too broad → move to skill
 
-*Graduation candidates:*
-- De-duplicate across modules
-- Keep as proposals — do not modify linter config; user must confirm
+*Graduation candidates:* de-duplicate across modules; keep as proposals (user confirms)
 
 *Skill candidates:*
-- Merge semantic duplicates across modules
-- Re-verify ≥ 3/4 criteria after cross-module view
-- Survivors → skill scaffolds list in `.claude/init-draft/skill-scaffolds.md`
+- Merge semantic duplicates; re-verify ≥ 3/4 criteria
+- Survivors → append to `.claude/init-draft/skill-scaffolds.md`
 
-*Missing modules:*
-- If a module's report was absent, note: "Module X: not explored" in uncertainties
+*Missing modules:* note in `.claude/init-uncertainties.md` under Missing coverage
 
-**Write `.claude/init-uncertainties.md`:**
+**Write `.claude/init-uncertainties.md` (append, don't overwrite):**
 
 ```markdown
 ## Init Uncertainties — <YYYY-MM-DD>
 
-### Graduation candidates (confirm before removing from CLAUDE.md)
-- [ ] `<rule>`: Could enforce via `<tool>` rule `<rule-name>`. Worth adding?
+### Graduation candidates (confirm before considering adding to toolchain)
+- [ ] `<rule>`: Could enforce via `<tool>` rule `<rule-name>`. Worth configuring?
 
 ### Layer decisions
 - [ ] `<item>`: Uncertain whether every-session or path-scoped. Your call.
@@ -257,55 +284,99 @@ For each report in `.claude/init-progress/*.md`:
 
 Skip this phase if the user chose option A.
 
-Read backup at `./claude-context-backup/`. Dispatch parallel subagent batches —
-one batch per backup file. Each comparison subagent receives the backup file
-content and the relevant draft file(s) from `.claude/init-draft/` to compare.
+**Cap: dispatch at most 8 comparison subagents at a time.** If the backup contains
+more files, process in sequential batches of 8.
 
-Each comparison subagent writes its findings to
-`.claude/init-progress/backup-compare-<backup-slug>.md` using this format:
+**Relevant draft file algorithm:** for each backup file, find the corresponding draft
+file by matching the filename stem to a domain name in `.claude/init-draft/rules/`
+(e.g., `backup/api.md` → `.claude/init-draft/rules/api.md`). If no match exists or
+the domain was split/renamed, provide the full CLAUDE.md and all rule files.
+
+**Full comparison subagent prompt** (fill `BACKUP_FILE`, `BACKUP_SLUG`, `DRAFT_FILES`):
+
+---
+
+Compare the backup file `BACKUP_FILE` against the new draft context layer.
+
+Draft files provided for comparison: `DRAFT_FILES`
+
+For each item in the backup file:
+
+1. Check whether a semantic equivalent exists in the draft files. "Semantic equivalent"
+   means the same concern is addressed — not keyword matching. A rule about "use named
+   exports" and one about "avoid default exports" are semantic equivalents.
+
+2. For items not in the draft, grep the current codebase to verify whether referenced
+   tools, paths, or patterns still exist:
+   ```bash
+   grep -r "<tool_or_path>" . --include="*.json" --include="*.ts" --include="*.toml" -l 2>/dev/null | head -5
+   ```
+
+3. Record verdict for each item.
+
+Write your findings to `.claude/init-progress/backup-compare-BACKUP_SLUG.md`:
 
 ```
-# Backup Comparison: <backup file path>
+# Backup Comparison: BACKUP_FILE
 
 ## Already covered
 - <item>: matches <draft section> — "<quoted equivalent in draft>"
 
 ## Adds value → propose merge
-- <item>: absent from draft. Grep confirms <tool/path> still exists.
+- <item>: absent from draft. Grep confirms <tool/path> exists at <file>.
   Proposed addition to: <draft file and section>
+  Proposed text: <exact text to add>
 
 ## Obsolete → skip
-- <item>: references <tool/path> not found in current codebase (grep: no results)
+- <item>: references <tool/path> not found by grep (no results in codebase)
 
 ## Uncertain → flag
-- <item>: <verbatim backup text>. Closest draft section: <section>. Question for user: <one sentence>
+- <item>: <verbatim backup text>
+  Closest draft section: <section>
+  Question for user: <one sentence>
 ```
 
+Return: `DONE: backup-compare-BACKUP_SLUG.md written`
+
+---
+
 **After all comparison subagents complete**, read all
-`.claude/init-progress/backup-compare-*.md` files. Collect all "adds value"
-items as proposed additions for Phase 6. Then re-read
+`.claude/init-progress/backup-compare-*.md`. Collect all "adds value" items as
+proposed additions (with exact proposed text) for Phase 6. Then re-read
 `.claude/init-uncertainties.md` and mark any items now resolved by backup content.
 
 ---
 
 ## Phase 5 — Health check
 
-Dispatch a single health check subagent. Provide it:
-- Full content of `.claude/init-draft/CLAUDE.md`
-- List of draft rule files (filenames + line counts)
-- The writing principles from `references/writing-principles.md`
+**Before dispatching:** read these two sources and hold them in context:
+1. `references/writing-principles.md` — full text (will be included in subagent prompt)
+2. Full content of `.claude/init-draft/CLAUDE.md` and all `.claude/init-draft/rules/*.md`
+
+**Dispatch a single health check subagent. Provide in the prompt:**
+- The full writing principles text (copy it verbatim into the prompt)
+- The full content of `.claude/init-draft/CLAUDE.md`
+- The full content of each rule file in `.claude/init-draft/rules/`
 
 The subagent evaluates against the health card template (health-card.md) and
-returns a health card. Main agent reviews and fixes before Phase 6:
+**returns the health card inline as text in its reply** (no file write needed).
 
-- Line count > 150 → identify lowest-value lines to cut (apply litmus test per line)
-- If line count still > 200 after cuts → do not fix further; present to user in
-  Phase 6 with warning: "Draft is N lines, above the 200-line red line. Please
-  review for additional cuts before applying."
+Main agent reviews the inline health card and fixes before Phase 6:
+
+- Line count > 150 → cut lowest-value lines (apply litmus test per line)
+- If line count still > 200 after cuts → keep as-is and present to user in Phase 6
+  with warning: "Draft is N lines, above the 200-line red line."
 - MUST/IMPORTANT count > 5 → soften overuse
 - Any `@import` → remove
-- Graduation candidates missed by subagents → add to uncertainties
+- Wrong-layer content (rules that should be CLAUDE.md or vice versa) → migrate
+- Graduation candidates missed → add to uncertainties
+- Rule files missing `paths:` frontmatter → add before Phase 6
 - Path rules with high collateral damage → flag or move to skill candidates
+- **Structural problems** (e.g., draft is near-empty after deduplication, major
+  domain entirely uncovered, most content wrongly layered): do not attempt to fix
+  silently. Surface as a "Structural issues" block at the top of the Phase 6
+  presentation, before the draft, with a clear description of what's wrong and
+  what the user should do.
 
 ---
 
@@ -322,11 +393,15 @@ Present in this order:
 
 **3. Skill scaffolds** — for each: name, trigger phrase, one-paragraph description
 
-**4. Backup additions** (rebuild path only) — "These items from your backup were
-not in the new draft. Add each? Review and decide:"
+**4. Backup additions** (rebuild path only) — present each "adds value" item:
+   "This item from your backup wasn't covered in the new draft — add it? (Y/N):"
 
-**5. Open uncertainties** — each item from `.claude/init-uncertainties.md`
-requiring user decision
+**5. Graduation candidates** — present each as a distinct action item:
+   "This rule could be enforced by `<tool>` rule `<rule-name>` — worth configuring
+   rather than keeping in CLAUDE.md? (Y/N):"
+
+**6. Remaining uncertainties** — each unresolved item from `.claude/init-uncertainties.md`
+   (layer decisions, contradictions, skill threshold calls, missing coverage)
 
 Close with:
 
@@ -338,30 +413,74 @@ Close with:
 
 ## Phase 7 — Apply
 
-**Only run this phase after the user explicitly confirmed in Phase 6.**
-If unsure whether Phase 6 was completed, ask before writing any file.
+**Only run after the user explicitly confirmed in Phase 6.**
+If unsure, ask before writing any file.
 
-Apply user modifications to draft files. Write in this order:
+**Step 1 — Read scaffolds and backup approvals before any cleanup:**
 
-1. `.claude/rules/*.md` — copy from `.claude/init-draft/rules/`
-2. `./CLAUDE.md` — copy from `.claude/init-draft/CLAUDE.md` to project root
-3. Clean up: `rm -rf .claude/init-progress/ .claude/init-draft/`
-4. Keep `.claude/init-uncertainties.md` if any unresolved items remain
+```bash
+cat .claude/init-draft/skill-scaffolds.md    # store confirmed scaffold info in context
+```
 
-**Do not commit.** Tell the user: "Files written — review before committing,
-especially rule file `paths:` globs and CLAUDE.md line count."
+For each user-approved backup item (from Phase 6), re-read the corresponding
+`.claude/init-progress/backup-compare-<slug>.md` to retrieve the exact proposed
+addition text. Apply additions to the appropriate draft file.
 
-**Verify after writing:**
+**Step 2 — Apply user modifications** to all draft files.
+
+**Step 3 — Write to project:**
+
+```bash
+# Copy rule files
+cp .claude/init-draft/rules/*.md .claude/rules/ 2>/dev/null || true
+# Write CLAUDE.md to project root
+cp .claude/init-draft/CLAUDE.md ./CLAUDE.md
+```
+
+**Step 4 — Cleanup:**
+
+```bash
+rm -rf .claude/init-progress/ .claude/init-draft/
+```
+
+Note: the module exploration reports in `.claude/init-progress/` will be deleted.
+Tell the user before running: "About to delete exploration reports. Move them elsewhere
+first if you want to keep them."
+
+**Step 5 — Keep uncertainties file** if any items remain unresolved:
+`.claude/init-uncertainties.md` stays in place.
+
+**Step 6 — Verify:**
 
 ```bash
 wc -l CLAUDE.md                                                    # target 100-150, red line 200
-grep -r "@import" CLAUDE.md                                        # should be empty
+grep "@import" CLAUDE.md                                           # should be empty
 find . -maxdepth 4 -name "CLAUDE.md" | grep -v "^./CLAUDE.md"    # no subdirectory CLAUDE.md
 ```
 
 - Each rule file has `paths:` frontmatter
 - No rule file exceeds 200 lines
-- `.claude/init-uncertainties.md` exists if unresolved items remain
 
-**For confirmed skill scaffolds:** after verification, hand off to `skill-creator`
-one at a time. Provide: skill name, trigger phrasing, and workflow description.
+**Step 7 — Skill scaffold handoff:**
+
+For each confirmed skill scaffold (from Step 1's stored info):
+
+Check if `skill-creator` appears in your available skills. Then:
+
+- **If available:** invoke `skill-creator` with the skill name, trigger phrasing, and
+  workflow description. Do this one at a time.
+- **If not available:** write a stub for each:
+  ```
+  .claude/skills/<kebab-name>/SKILL.md
+  ---
+  name: <name>
+  description: <trigger phrasing>
+  ---
+  # <name>
+  TODO: flesh out this skill using skill-creator.
+  Install: npx skills add anthropics/skills --skill skill-creator -g -y
+  ```
+  Tell the user: "Skill stubs written — complete them with skill-creator when available."
+
+**Do not commit.** Tell the user: "Files written — review before committing,
+especially rule file `paths:` globs and CLAUDE.md line count."
