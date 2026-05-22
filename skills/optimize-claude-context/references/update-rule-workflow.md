@@ -80,7 +80,7 @@ with a note explaining the user's rationale.
 Run the two-step filter:
 
 1. Can the project's linter / formatter / hooks / config enforce this?
-   → Yes → propose graduation (see audit-refactor-workflow.md § Graduation).
+   → Yes → propose graduation (see optimize-workflow.md § Graduation).
 2. If I remove this line, will Claude make a mistake it wouldn't otherwise make?
    → No → do not add. Explain why.
    → Yes → route through the decision tree (see decision-tree.md):
@@ -99,10 +99,6 @@ Present the proposal:
   to positive form.
 - **Location**: which file, which section.
 - **Rationale**: why this location, why this phrasing.
-- **Anchor update**: if the target is CLAUDE.md and the rule is among the top-3
-  most critical for the project, add it to both `# CRITICAL — Read first` and
-  `# CRITICAL — Read last` sections.
-
 **When the decision tree routes to a skill:**
 
 - If creating a **new** skill: present the scaffold (name, description, body
@@ -138,14 +134,14 @@ When the user wants to **move** a rule:
 Always generate a diff preview before writing, even for single-rule changes.
 Show the before and after state of every file that will change.
 
-**Graduation in add-rule:** If the mechanism selection protocol routes to
-graduation (Step 4), follow the same 2-pass apply as audit-refactor:
+**Graduation:** If the mechanism selection protocol routes to
+graduation (Step 4), follow the 2-pass apply:
 1. Show the toolchain config diff alongside the context-layer diff.
 2. Apply toolchain config change first (Pass 1).
 3. Verify config is in place.
 4. Only then apply context-layer change (Pass 2).
 
-See `audit-refactor-workflow.md` § Graduation for the full checklist and
+See `optimize-workflow.md` § Graduation for the full checklist and
 proposal format. If config verification fails, abort and report — do not
 delete the context-layer rule.
 
@@ -155,8 +151,6 @@ After writing, verify:
 
 - CLAUDE.md line count still within budget.
 - No `@import` introduced.
-- If the rule was added to or removed from `# CRITICAL` sections, both anchor
-  sections are in sync.
 - If a new rule file was created, `paths:` frontmatter is correct.
 - If a new skill was scaffolded, `name` and `description` frontmatter are
   present.

@@ -37,6 +37,9 @@ explore the codebase.
   `lerna.json`, workspace files (`pnpm-workspace.yaml`, `go.work`).
 - Linter/formatter config: `.eslintrc*`, `eslint.config.*`, `.prettierrc*`,
   `ruff.toml`, `pyproject.toml [tool.ruff]`, `rustfmt.toml`, `.editorconfig`.
+  **Read these in full — never truncate.** Rules are scattered throughout and
+  a truncated read will miss existing enforcement, producing false graduation
+  proposals or, worse, redundant CLAUDE.md rules that shadow linter coverage.
 - Type checker config: `tsconfig*.json`, `mypy.ini`, `pyrightconfig.json`.
 - CI config: `.github/workflows/`, `.gitlab-ci.yml`, `Jenkinsfile`.
 - Existing agent config: `.claude/`, `.cursor/`, `.cursorrules`,
@@ -48,6 +51,10 @@ explore the codebase.
   consolidation candidate.
 - **Rule frontmatter check:** For each `.claude/rules/*.md`, note whether it
   has a `paths:` field. Rules without `paths:` load unconditionally.
+- **Existing index check:** Before assuming CLAUDE.md needs an ADR or docs
+  index, check whether `docs/adr/README.md`, `docs/decisions/README.md`, or
+  equivalent already exists. If it does, any CLAUDE.md section duplicating
+  that index is a drop candidate — not a content to carry forward.
 - **Skill deep-read:** For each `.claude/skills/*/SKILL.md`, read the full
   file and check: (a) does the `description` trigger still accurately reflect
   what the skill does and when it should fire, given the current project? (b)
@@ -61,6 +68,12 @@ explore the codebase.
 - Entry point files (`src/index.*`, `main.*`, `app.*`).
 - A representative sample of source files across major directories.
 - Test files to understand testing patterns.
+- **Skill candidate hunting:** While reading source, actively look for
+  multi-step workflows that recur but can't be path-triggered — onboarding
+  sequences, migration procedures, cross-cutting debugging patterns, release
+  checklists, domain-specific code-generation flows. These are skill
+  candidates. If you find none after reading ~10 source files, state that
+  explicitly rather than silently skipping this step.
 
 ### Monorepo sampling strategy
 
@@ -216,7 +229,7 @@ The user decides yes/no (or modifies) each proposal.
 After collecting all decisions, generate a complete diff preview showing the
 final state of every file that will be created, modified, or deleted:
 
-- The full new content of CLAUDE.md (with primacy–recency anchoring applied).
+- The full new content of CLAUDE.md.
 - Any new or modified rule files (with correct `paths:` frontmatter).
 - Any new skill scaffolds (with `name` and `description` frontmatter).
 - Any files to delete (e.g., removing a redundant nested CLAUDE.md).
@@ -243,7 +256,6 @@ changes. This includes deleting context-layer rules that graduated in Pass 1.
 Verify after both passes:
 
 - CLAUDE.md line count is within budget (target 100–150, red line 200).
-- Primacy–recency anchoring is in place (3 rules mirrored at top and bottom).
 - All `paths:` frontmatter in rules uses the correct format.
 - No `@import` remains in CLAUDE.md.
 - No subdirectory CLAUDE.md was created.

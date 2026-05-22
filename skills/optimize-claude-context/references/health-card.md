@@ -34,7 +34,6 @@ Separation of concerns
   @import references:                    <N> items   → inline or migrate
 
 Structure
-  Primacy–recency anchoring:     <present / missing>
   Heading structure:             <well-structured / needs improvement>
   Compound bullets (multi-rule): <N> items   → split candidates
   Commands outside code fences:  <N> items   → rewrite candidates
@@ -69,11 +68,10 @@ determines the severity indicator only.
 - **Line count**: total lines (`wc -l`). Compare against 100–150 target and
   200 red line.
 - **MUST/IMPORTANT**: count occurrences of "MUST" and "IMPORTANT"
-  (case-insensitive). Exclude the `# CRITICAL — Read first` and
-  `# CRITICAL — Read last` anchoring sections entirely — those are expected to
-  use strong language. Do NOT count "CRITICAL" or "NEVER" as part of this
-  metric; NEVER prohibitions are tracked under "Prohibitions without rationale"
-  instead (and are fine if they have rationale).
+  (case-insensitive). Exclude the `# CRITICAL — Read first` section — it is
+  expected to use strong language. Do NOT count "CRITICAL" or "NEVER" as part
+  of this metric; NEVER prohibitions are tracked under "Prohibitions without
+  rationale" instead (and are fine if they have rationale).
 
 ### Separation of concerns
 
@@ -101,8 +99,6 @@ determines the severity indicator only.
 
 ### Structure
 
-- **Primacy–recency anchoring**: check for `# CRITICAL — Read first` and
-  `# CRITICAL — Read last` sections with matching content.
 - **Heading structure**: verify H1/H2/H3 hierarchy, no H4+, logical grouping.
 - **Compound bullets**: bullets containing multiple unrelated instructions
   joined by commas or "and".
@@ -121,8 +117,7 @@ determines the severity indicator only.
 ## Rules / Skills Summary Template
 
 For each `.claude/rules/*.md` and `.claude/skills/*/SKILL.md`, produce a shorter
-summary using this template. Skip metrics that only apply to CLAUDE.md (e.g.,
-primacy-recency anchoring).
+summary using this template.
 
 ```
 Rule/Skill Summary — <file path>
