@@ -1,0 +1,214 @@
+# Audit Workflow
+
+Evaluates the health of the current context layer. Produces a scored, prioritized
+report at `.claude/audit-report.md`.
+
+**Scope:** audit writes `.claude/audit-report.md` only. It does NOT modify any
+context layer file. After the report, each improvement is pursued separately via
+`handle-one-directive`.
+
+References:
+- `decision-tree.md` — for per-directive layer check
+- `linter-capabilities.md` — for linter graduation check methodology
+- `writing-formats.md §Health Card` — for scoring metrics and thresholds
+
+---
+
+## Scan Scope
+
+Audit scans project-level artifacts only:
+- `./CLAUDE.md`
+- `./.claude/rules/*.md`
+- `./.claude/skills/*/SKILL.md` (project-level only)
+- `./docs/adrs/`
+- `~/.claude/CLAUDE.md` (global — read-only; check for project-specific directives)
+
+---
+
+## Execution Steps
+
+Deduction values for all finding type codes are defined in `writing-formats.md
+§Health Card — Scoring` (the single authoritative source). Each step below produces
+finding type codes only; do not define or redefine deduction values here.
+
+### Step 1 — File inventory
+
+```bash
+wc -l ./CLAUDE.md
+find .claude/rules -name "*.md" | sort
+find .claude/skills -name "SKILL.md" | sort
+find docs/adrs -name "*.md" | sort 2>/dev/null
+```
+
+Record file count and line counts.
+
+### Step 2 — Per-directive layer check
+
+For each directive in each file, apply the decision tree (Steps 0-3 from
+`decision-tree.md`) **without writing anything**. Compare the actual layer to
+the decision tree result.
+
+| Actual vs. expected | Finding type |
+|---|---|
+| Matches decision tree | — |
+| In wrong layer | `WRONG_LAYER` |
+| Skill description > 15 words | `DESC_TOO_LONG` |
+| Rule missing `paths:` frontmatter | `MISSING_PATHS` |
+| ADR with empty Consequences | `INCOMPLETE_ADR` |
+| Stub skill never completed | `STUB_INCOMPLETE` |
+
+### Step 3 — Linter graduation check
+
+For each behavioral directive in CLAUDE.md and path rules:
+
+Ask: "If this directive CAN be enforced by [linter], write the exact rule
+configuration and cite the official documentation URL."
+
+See `linter-capabilities.md` for enforcement mechanisms. Do not count as a
+graduation opportunity if you cannot produce a valid config + citation.
+
+| Finding | Finding type |
+|---|---|
+| Linter-enforceable directive in context layer | `LINTER_GRADUATION` |
+| `@import` reference in any context file | `IMPORT_REF` |
+
+### Step 4 — Stale check
+
+For each directive that references file paths or tool names, grep the codebase:
+
+```bash
+# File path check
+find . -path "<referenced-path>" 2>/dev/null | head -3
+
+# Tool/library name check
+grep -r "<tool-name>" . --include="package.json" --include="*.toml" \
+  --include="*.yaml" -l 2>/dev/null | head -3
+```
+
+| Finding | Finding type |
+|---|---|
+| Referenced path not found | `STALE` |
+| Referenced tool name not found | `STALE` |
+
+### Step 5 — ADR validation
+
+For each ADR in `./docs/adrs/`:
+
+1. Does it meet the ADR definition? (Non-obvious architectural decision with
+   trade-off rationale. Would a future contributor be confused without it?)
+2. Is the content already covered by a CLAUDE.md or path rule?
+3. Could it be replaced by a code comment at the relevant location?
+
+| Finding | Finding type |
+|---|---|
+| ADR fails definition check | `ADR_INVALID` |
+| ADR content duplicated in CLAUDE.md | `ADR_DUPLICATE` |
+| ADR replaceable by code comment | `ADR_REPLACEABLE` |
+
+### Step 6 — Global CLAUDE.md check
+
+Read `~/.claude/CLAUDE.md`. For each directive found: is it project-specific (only
+meaningful in the context of this project)?
+
+| Finding | Finding type |
+|---|---|
+| Project-specific directive in global CLAUDE.md | `GLOBAL_MISPLACED` |
+
+---
+
+## Scoring
+
+See `writing-formats.md §Health Card — Scoring` for the authoritative scoring table:
+category definitions, per-finding deduction values, and score calculation formula.
+
+**Finding → category mapping** (maps finding type codes defined above to categories):
+
+| Finding type | Category |
+|---|---|
+| `WRONG_LAYER`, `STUB_INCOMPLETE` | Layer compliance |
+| `LINTER_GRADUATION`, `IMPORT_REF`, `GLOBAL_MISPLACED` | Toolchain efficiency |
+| `STALE` | Content freshness |
+| `INCOMPLETE_ADR`, `ADR_INVALID`, `ADR_DUPLICATE`, `ADR_REPLACEABLE`, `MISSING_PATHS`, `DESC_TOO_LONG` | Format compliance |
+
+---
+
+## Output: `.claude/audit-report.md`
+
+```markdown
+## Context Layer Audit — <project name> — <date>
+
+### Score: <total>/100
+
+| Category | Score |
+|---|---|
+| Layer compliance | <N>/25 |
+| Toolchain efficiency | <N>/25 |
+| Content freshness | <N>/25 |
+| Format compliance | <N>/25 |
+
+### Priority Actions (high impact first, deduction from writing-formats.md §Scoring)
+
+[1] LINTER_GRADUATION (-5): "<directive text>" can be enforced by ESLint
+    `no-restricted-syntax: [{selector: "TryStatement", message: "..."}]`
+    Docs: https://eslint.org/docs/latest/rules/no-restricted-syntax
+    File: CLAUDE.md:34
+
+[2] WRONG_LAYER (-5): "<directive text>" is in a path rule but is a multi-step
+    procedure — route to skill instead.
+    File: .claude/rules/logging.md:12-18
+
+[3] STALE (-5): .claude/rules/auth.md references src/services/auth/oldModule.ts
+    — file not found by find.
+    File: .claude/rules/auth.md:8
+
+[4] MISSING_PATHS (-5): .claude/rules/api.md has no paths: frontmatter — loads
+    unconditionally, consuming every-session budget.
+    File: .claude/rules/api.md:1
+
+[5] GLOBAL_MISPLACED (-5): ~/.claude/CLAUDE.md line 23 contains a project-specific
+    directive ("Use pnpm for this project") — move to ./CLAUDE.md.
+
+[6] ADR_INVALID (-3): docs/adrs/0003-use-react.md explains an obvious choice with
+    no trade-off analysis — does not meet ADR definition.
+    File: docs/adrs/0003-use-react.md
+
+### Files Scanned
+
+| File | Lines | Status |
+|---|---|---|
+| ./CLAUDE.md | <N> | <within budget / over budget> |
+| .claude/rules/api.md | <N> | <paths: present / missing> |
+| .claude/skills/deploy/SKILL.md | <N> | <stub / complete> |
+| docs/adrs/0001-use-pnpm.md | <N> | valid |
+
+### How to act
+
+Call handle-one-directive for each item you want to improve. Example:
+
+> "The auth rule is stale — references src/services/auth/oldModule.ts which no
+> longer exists."
+
+handle-one-directive will route the updated directive to the correct layer.
+
+To fix a linter graduation opportunity, provide the config + citation to
+handle-one-directive, which will modify the linter config directly.
+```
+
+---
+
+## Post-audit: Acting on Findings
+
+Audit produces findings only — it does not fix them. Each finding becomes input to
+`handle-one-directive`:
+
+| Finding | What to tell handle-one-directive |
+|---|---|
+| `WRONG_LAYER` | "Move this directive to the correct layer: [paste directive text]" |
+| `LINTER_GRADUATION` | "Graduate this to the linter: [paste config + citation]" |
+| `STALE` | "Update or remove this stale directive: [paste directive text]" |
+| `MISSING_PATHS` | "Add paths: frontmatter to this rule: [paste rule content]" |
+| `GLOBAL_MISPLACED` | "Move this from global CLAUDE.md to project: [paste text]" |
+| `INCOMPLETE_ADR` | "Add Consequences section to ADR: [paste ADR path]" |
+
+One call per finding. handle-one-directive runs the full decision tree and writes
+the fix.

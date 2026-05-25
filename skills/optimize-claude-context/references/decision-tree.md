@@ -1,119 +1,210 @@
-# Decision Tree — Where Content Belongs
+# Decision Tree
 
-## The three layers
+Routes a directive to its correct layer. Run all steps in order. Stop at the first
+terminal outcome (Graduate, CONFLICT, or a layer assignment).
 
-### Layer 1: Root CLAUDE.md
+Foundational concepts: `directive.md`
+Linter methodology: `linter-capabilities.md`
+Writing specs: `writing-formats.md`
 
-**File:** `./CLAUDE.md` (single file at project root)
-
-**Loaded:** Every session, unconditionally.
-
-**Put here when:**
-
-- Claude needs this fact in every session regardless of which files are being
-  touched.
-- Examples: package manager name, cross-cutting build/test commands, monorepo
-  layout overview, top-3 critical rules (anchored at top and bottom).
-
-**Do NOT put here when:**
-
-- The rule only applies to certain file types or directories → use a rule.
-- The content is a multi-step procedure or domain knowledge for a specific
-  task → use a skill.
-
-### Layer 2: Path-scoped project rules
-
-**Directory:** `./.claude/rules/`
-
-**Loaded:** When Claude reads a file matching the `paths:` glob in the rule's
-YAML frontmatter. Rules without `paths:` load unconditionally (same as CLAUDE.md
-content — use sparingly).
-
-**Frontmatter format:**
-
-```yaml
 ---
-paths:
-  - "src/api/**/*.ts"
-  - "src/services/**/*.ts"
----
+
+## Step 0 — Parse
+
+**0a. Atomicity check**
+
+Apply the atomic definition from `directive.md`: one independently routable
+knowledge point. If the input contains two or more directives:
+- Split into individual directives.
+- Process each one independently from Step 1.
+- Do not continue with a merged directive.
+
+```
+input: "Project uses pnpm and main process uses four-layer architecture"
+→ split into two directives; run decision tree twice
 ```
 
-**Known issues (as of 2026-05):**
+**0b. Scope determination**
 
-- YAML list format for `paths:` may only match the first pattern in some
-  versions. If this occurs, use CSV format:
-  `paths: "src/api/**/*.ts,src/services/**/*.ts"`
-- `globs:` field may load unconditionally regardless of pattern. Use `paths:`
-  instead.
-- All rules in `.claude/rules/` live at the project root. Subdirectory
-  `.claude/rules/` directories are not documented as supported.
+Assign scope before continuing.
 
-**Put here when:**
+- Does this knowledge apply equally everywhere in the project? → `root`
+- Does it only apply within one subdirectory or package? → `<package-path>`
+- Ambiguous? → `root` (safe default; can be narrowed later)
 
-- The rule applies only when Claude is working with files matching a specific
-  glob pattern, **and** the glob fires with low collateral damage — i.e., it
-  triggers only in situations where the rule is genuinely relevant.
-- Examples: "React component conventions" scoped to `**/*.tsx`, "API design
-  rules" scoped to `src/api/**/*`, "Terraform conventions" scoped to
-  `infra/**/*`.
-- Counter-example (use a skill instead): "When adding user-facing text, add i18n
-  keys to `locales/`" scoped to `**/*.tsx` — the glob fires on every tsx change,
-  even unrelated refactors. The intent is semantic ("adding user-facing text"),
-  not file-path-triggered.
+Scope is required for Step 1 (which toolchain to check) and Step 3 (which layer
+within scope to target).
 
-**Monorepo pattern:**
+---
 
+## Step 1 — Linter Feasibility Check
+
+Identify the language and primary linter for the directive's scope. Read the
+toolchain config files for that scope:
+
+- JavaScript/TypeScript: `package.json`, `eslint.config.*`, `.eslintrc.*`, `tsconfig.json`
+- Python: `pyproject.toml`, `ruff.toml`, `.flake8`
+- Rust: `Cargo.toml`, `clippy.toml`
+- Any scope: `.pre-commit-config.yaml`, `.editorconfig`
+
+**Ask exactly this question:**
+
+> "If this directive CAN be enforced by [linter], write the **exact rule
+> configuration** and cite the **official documentation URL** (or parent page URL
+> for rules without individual docs). If you cannot produce a configuration backed
+> by documentation, say 'not enforceable'."
+
+| Result | Action |
+|---|---|
+| Valid config + citation produced | **Graduate** — modify (or create) linter config file; directive does NOT enter context layer |
+| "Not enforceable" or no valid config | Continue to Step 2 |
+
+See `linter-capabilities.md` for enforcement mechanisms commonly missed:
+`no-restricted-syntax` (AST-based bans), `no-restricted-imports`,
+`no-restricted-globals`, TypeScript compiler options, pre-commit hooks.
+
+After graduating: verify by running the linter against code that should trigger the rule.
+If the linter does not produce an error, the config is incorrect — do not graduate.
+Revert the config change and continue to Step 2.
+
+---
+
+## Step 2 — Check for Existing Directives
+
+Scan project-level context files only (never `~/.claude/`):
+- `./CLAUDE.md`
+- `./.claude/rules/*.md`
+- `./.claude/skills/*/SKILL.md`
+
+Search for semantic overlap — same domain, same intent — not just keyword matches.
+
+| Result | Action |
+|---|---|
+| **New** — no semantic overlap | Continue to Step 3 |
+| **Merge** — overlapping directive exists with less or different info | Combine; continue to Step 3 with merged directive |
+| **Conflict** — sources contradict each other | Flag CONFLICT; surface to user; **halt** — do not write anything. Wait for user to resolve the conflict, then rerun from Step 2 with the resolved directive. |
+
+**Conflict surface format:**
+
+```
+CONFLICT detected
+  Existing: [file:line] "Never use try-catch"
+  New:      "Use try-catch for async boundary errors only"
+  Resolution required before proceeding.
+```
+
+**Stub entries:** `status: stub` skill entries count as pending, not as conflicting
+existing directives.
+
+---
+
+## Step 3 — Layer Routing
+
+Apply the layer selection rules in strict order. Stop at the first match.
+
+| Priority | Condition | Target layer |
+|---|---|---|
+| 1 | Multi-step procedure: sequential steps, order matters, cross-file or cross-command | **Skill** |
+| 2 | scope=`root`, behavioral rule (must-always-do, applies every session) | **CLAUDE.md** |
+| 3 | scope=`<package-path>`, lookup / reference content | **Path rule** with `paths:` glob |
+| 4 | Explanatory rationale ("why we chose X over Y") | **ADR** |
+| 5 | None of the above | deprecated |
+
+**Tiebreaker (priority 1 always wins):** a multi-step procedure routes to Skill
+regardless of scope. A cross-cutting procedure that applies to all packages is still
+a Skill, not CLAUDE.md.
+
+**Procedure vs. rule distinction:**
+- Procedure: has ordered steps, involves multiple files or commands, order matters.
+  Example: "How to add a new log category" (create file → register → update index).
+- Rule: a single behavioral constraint with no ordered steps.
+  Example: "Always use structuredLogger for runtime logging."
+
+**ADR vs. CLAUDE.md distinction:**
+- ADR: explains *why* — the trade-off analysis, what alternatives were rejected.
+- CLAUDE.md: states *what* — the rule itself, what Claude must do.
+- If both a rule and its rationale exist: rule → CLAUDE.md, rationale → ADR.
+  These are two separate directives.
+
+**Deprecated criteria:** content that is obsolete, superseded by code structure,
+or so generic that it adds no value (principle 6 from `writing-formats.md`).
+
+---
+
+## Confidence Calibration
+
+Assign a confidence level to each routing decision. Used in rebuild Phase 4 table.
+
+| Level | Criteria |
+|---|---|
+| **H** | Routing is unambiguous — only one valid layer given the decision tree |
+| **M** | Two plausible layers exist and one was chosen; OR linter check result was uncertain |
+| **L** | Directive is ambiguous in scope or type; a different reasonable agent might choose differently |
+
+**Examples:**
+
+```
+"Use pnpm as the package manager"
+  → not enforceable (package manager choice is not a lint rule)
+  → no conflict
+  → scope=root, behavioral, single constraint → CLAUDE.md
+  → confidence: H
+
+"How to release a new version"
+  → not enforceable
+  → no conflict
+  → multi-step procedure → Skill
+  → confidence: H
+
+"API response shape conventions"
+  → not enforceable via linter
+  → no conflict
+  → scope=apps/api/, lookup/reference → Path rule (paths: "apps/api/**/*.ts")
+  OR scope=root → CLAUDE.md?
+  → confidence: M (chose path rule because it's lookup/reference content for a
+    specific package, not a universal behavioral rule)
+
+"Authentication — use JWT or sessions?"
+  → scope is unclear (root or apps/auth/?)
+  → confidence: L
+```
+
+---
+
+## Scope + Monorepo Routing
+
+| Directive type | Scope | Target |
+|---|---|---|
+| Cross-cutting behavioral rule | `root` | `./CLAUDE.md` |
+| Cross-cutting procedure | `root` | `./.claude/skills/<name>/SKILL.md` |
+| Package-specific conventions | `apps/x/` | `./.claude/rules/<domain>.md` with `paths: "apps/x/**"` |
+| Package-specific procedure | `apps/x/` | Still Skill (priority 1 always wins) |
+| Decision rationale | any | `./docs/adrs/NNNN-<slug>.md` (always at project root) |
+
+Monorepo layout example:
 ```
 .claude/rules/
-  ├── web.md         ← paths: "apps/web/**/*"
-  ├── api.md         ← paths: "services/api/**/*"
-  └── infra.md       ← paths: "infra/**/*"
+  ├── desktop.md    ← paths: "apps/plaud-desktop/**"
+  ├── api.md        ← paths: "services/api/**"
+  └── shared.md     ← paths: "packages/shared/**"
 ```
 
-### Layer 3: Skills
+Global `~/.claude/CLAUDE.md` is never modified by this skill. If a project-specific
+directive is found there during rebuild or audit, flag it for manual removal.
 
-**Directory:** `./.claude/skills/<name>/SKILL.md`
+---
 
-**Loaded:** When Claude determines from its prompt analysis that the skill is
-relevant (semantic trigger via the `description` field), or when the user
-explicitly invokes `/<skill-name>`.
+## Reverse-Layer Detection (for audit)
 
-**Put here when:**
+Check for content in the wrong layer. Each symptom maps to a fix.
 
-- The content cannot be triggered by a file-path glob.
-- Examples: "API design workflow", "migration script procedure", "code review
-  checklist", "onboarding documentation guide".
-
-**Skill scaffold conventions:**
-
-- **Directory name:** kebab-case, matching the `name` field in frontmatter.
-- **`description` field:** the primary trigger — write it "pushy" enough to
-  cover realistic user phrasings. Include both what the skill does AND specific
-  trigger phrases. **Hard limit: ≤ 50 words.** The description is loaded into
-  every session as part of the available-skills list; a long description wastes
-  context budget and degrades triggering accuracy.
-- **Body:** imperative instructions, < 500 lines ideal.
-- **`references/` subdirectory:** for content that exceeds ~200 lines in the
-  SKILL.md body. The SKILL.md references these files with prose paths; the agent
-  reads them on demand.
-
-## Reverse-layer detection (for audits)
-
-During audits, also check for content in the **wrong layer going the other
-direction**:
-
-| Symptom | Fix |
-|---|---|
-| Every-session fact buried in a path-scoped rule | Migrate to CLAUDE.md |
-| Procedural workflow in a rule (no path trigger makes sense) | Migrate to a skill |
-| Path-scoped content in CLAUDE.md wasting every-session budget | Migrate to a rule with `paths:` |
-| Path rule whose glob fires in many irrelevant situations (high collateral damage) | Migrate to a skill |
-
-## Out of scope: user-level rules
-
-User-level rules in `~/.claude/rules/` apply to every project on the machine.
-This skill manages project-level artifacts only. Note: user-level rules'
-`paths:` frontmatter is currently ignored (see Claude Code issue #21858), so
-they always load unconditionally. If encountered during audit, note their
-existence but do not modify them.
+| Symptom | Diagnosis | Fix |
+|---|---|---|
+| Every-session fact buried in a path-scoped rule | Rule glob fires too narrowly for universal content | Migrate to CLAUDE.md |
+| Procedural workflow in a rule (no file-path trigger makes sense) | Should be Skill | Migrate to Skill |
+| Path-scoped content in CLAUDE.md wasting every-session budget | Should be Rule | Migrate to Rule with `paths:` |
+| Path rule whose glob fires in many irrelevant situations | High collateral damage | Migrate to Skill (semantic trigger) |
+| Decision rationale in CLAUDE.md | Rationale ≠ behavioral rule | Migrate to ADR |
+| Behavioral rule buried in ADR body | Rule ≠ rationale | Extract rule to CLAUDE.md; keep only rationale in ADR |
+| Skill description > 15 words | Exceeds hard limit | Trim or run skill-creator eval loop |
+| Rule without `paths:` frontmatter | Loads unconditionally | Add `paths:` or migrate to CLAUDE.md |
