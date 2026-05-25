@@ -20,7 +20,11 @@ Audit scans project-level artifacts only:
 - `./CLAUDE.md`
 - `./.claude/rules/*.md`
 - `./.claude/skills/*/SKILL.md` (project-level only)
-- `./docs/adrs/`
+- All ADR directories discovered dynamically:
+  ```bash
+  find . -type d \( -name "adr" -o -name "adrs" -o -name "decisions" \) \
+    -not -path "*/node_modules/*" -not -path "*/.git/*"
+  ```
 - `~/.claude/CLAUDE.md` (global — read-only; check for project-specific directives)
 
 ---
@@ -54,8 +58,14 @@ the decision tree result.
 | In wrong layer | `WRONG_LAYER` |
 | Skill description > 15 words | `DESC_TOO_LONG` |
 | Rule missing `paths:` frontmatter | `MISSING_PATHS` |
+| Path rule missing `when:` field | `MISSING_WHEN` |
 | ADR with empty Consequences | `INCOMPLETE_ADR` |
 | Stub skill never completed | `STUB_INCOMPLETE` |
+
+**`MISSING_WHEN` judgment:** a path-rule without `when:` is flagged regardless of glob
+width. A broad package-root glob (`apps/X/**`) is NOT a problem — the issue is the
+absence of purpose documentation. If a path-rule intentionally covers a wide scope, the
+`when:` makes that intent explicit and lets Claude self-filter.
 
 ### Step 3 — Linter graduation check
 
@@ -128,7 +138,7 @@ category definitions, per-finding deduction values, and score calculation formul
 | `WRONG_LAYER`, `STUB_INCOMPLETE` | Layer compliance |
 | `LINTER_GRADUATION`, `IMPORT_REF`, `GLOBAL_MISPLACED` | Toolchain efficiency |
 | `STALE` | Content freshness |
-| `INCOMPLETE_ADR`, `ADR_INVALID`, `ADR_DUPLICATE`, `ADR_REPLACEABLE`, `MISSING_PATHS`, `DESC_TOO_LONG` | Format compliance |
+| `INCOMPLETE_ADR`, `ADR_INVALID`, `ADR_DUPLICATE`, `ADR_REPLACEABLE`, `MISSING_PATHS`, `MISSING_WHEN`, `DESC_TOO_LONG` | Format compliance |
 
 ---
 

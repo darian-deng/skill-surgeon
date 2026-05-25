@@ -137,6 +137,7 @@ real incident. Default to keeping it unless the user explicitly confirms obsoles
 ---
 paths:
   - "src/api/**/*.ts"
+when: "When working with API endpoint code"
 ---
 # Rule title
 
@@ -149,14 +150,42 @@ first pattern in some Claude Code versions. Use CSV format as fallback:
 ```yaml
 ---
 paths: "src/api/**/*.ts,src/api/**/*.js"
+when: "When working with API endpoint code"
 ---
 ```
+
+**`when:` field (required):**
+
+One sentence describing the **work scenario** where this content is relevant —
+not a restatement of the glob pattern.
+
+- ✅ `"When adding or modifying user-visible text, UI copy, or translations"`
+- ✅ `"When working on authentication flows or session management"`
+- ❌ `"When files match renderer/**/*.tsx"` — this is the glob, not the scenario
+
+`when:` tells Claude whether to pay attention to this file's content given the
+current task. Without it, Claude treats all loaded path-rules as equally relevant,
+causing collateral noise when the task has nothing to do with the rule's domain.
+
+**`when:` confidence and who writes it:**
+- `apps/X/**` or `packages/X/**` (package-root globs) → auto-inferred as "When working on X features" — no user confirmation needed
+- Domain path + content analysis → AI proposes, user confirms in Phase 5 Tier-B
+- Broad glob + specialized content (low overlap) → AI proposes, user must explicitly confirm in Phase 5 Tier-A
 
 **Content constraints:**
 - Lookup / reference only — not workflow instructions (those go to Skill)
 - One file per domain (`auth.md`, `api.md`, `logging.md`, etc.)
 - Target ~150 lines; hard limit ~200
 - Include concrete examples, not abstract descriptions
+
+**Collateral damage check (before finalizing path-rule routing):**
+
+After deciding to route to path-rule, ask: "Does this glob fire frequently in scenarios where the content is irrelevant?"
+
+- LOW collateral damage → keep as path-rule (the `when:` field guides Claude to self-filter)
+- HIGH collateral damage AND the `when:` scenario has clear semantic boundaries → route to Skill instead
+
+Example: `renderer/**/*.tsx` for i18n rules has HIGH collateral damage — any tsx change triggers it, but i18n rules are only relevant when adding user-visible text. Route to Skill. Example: `apps/plaud-desktop/**` for desktop conventions has LOW collateral damage — any desktop work needs the conventions. Keep as path-rule with `when: "When working on any Electron desktop feature"`.
 
 ---
 
@@ -370,6 +399,6 @@ Audit scores each category 0-100. Deductions accumulate per finding.
 | Layer compliance | 25 | Wrong layer: -5 per item; stub skills never completed: -3 each |
 | Toolchain efficiency | 25 | Linter-enforceable directive in context: -5 per item; @import: -3 each; project-specific directive in `~/.claude/CLAUDE.md`: -5 each |
 | Content freshness | 25 | Stale reference: -5 per item; obsolete tool name: -3 each |
-| Format compliance | 25 | Missing `paths:` frontmatter: -5 per item; description >15 words: -5; empty Consequences: -5; ADR fails definition (`ADR_INVALID`): -3; ADR content duplicated (`ADR_DUPLICATE`): -3; ADR replaceable by code comment (`ADR_REPLACEABLE`): -2 |
+| Format compliance | 25 | Missing `paths:` frontmatter: -5 per item; missing `when:` in path rule (`MISSING_WHEN`): -3 per item; description >15 words: -5; empty Consequences: -5; ADR fails definition (`ADR_INVALID`): -3; ADR content duplicated (`ADR_DUPLICATE`): -3; ADR replaceable by code comment (`ADR_REPLACEABLE`): -2 |
 
 Total score = sum of four category scores (0-100).

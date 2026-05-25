@@ -19,8 +19,8 @@ the run. Two sections: non-ADR directives and ADR entries.
 
 ### Non-ADR Table
 
-| directive | sources (file:lines) | conflict | stale | decision result | confidence | status | final file |
-|---|---|---|---|---|---|---|---|
+| directive | sources (file:lines) | conflict | stale | decision result | domain-file | when (path-rule) | when-confidence | confidence | status | final file |
+|---|---|---|---|---|---|---|---|---|---|---|
 
 **Column definitions:**
 
@@ -32,9 +32,19 @@ the run. Two sections: non-ADR directives and ADR entries.
   codebase; empty otherwise
 - **decision result**: `Graduate` / `CLAUDE.md` / `path-rule:<glob>` / `skill:<name>` /
   `ADR` / `deprecated`
-- **confidence**: `H` / `M` / `L` (see decision-tree.md confidence calibration)
+- **domain-file**: for `CLAUDE.md` rows — the target section heading (e.g., `## Architecture`);
+  for `path-rule` rows — the target domain file stem (e.g., `api`, `auth`, `logging`)
+- **when (path-rule)**: only for path-rule rows — one sentence describing the work scenario
+  where this content is relevant (see `writing-formats.md §Path Rule Format`)
+- **when-confidence**: only for path-rule rows — `H` / `M` / `L` (see below)
+- **confidence**: `H` / `M` / `L` for the routing decision itself
 - **status**: `pending` → `in-progress` → `done` / `deprecated` / `conflict-blocked`
 - **final file**: exact target file path (filled in Phase 6 after writing)
+
+**`when-confidence` for path-rule rows:**
+- **H**: glob alone implies the scenario (package-root globs, standard file types) — auto-written, no user confirmation needed
+- **M**: inferred from glob + content analysis — shown in Phase 5 Tier-B for batch confirm
+- **L**: broad glob with specialized content — shown in Phase 5 Tier-A for explicit confirm
 
 ### ADR Table (separate section in same file)
 
@@ -54,7 +64,7 @@ Only Phase 6 sets `done`. Phase 3 sets `conflict-blocked`. Phase 5 (user) may se
 
 ---
 
-## Phase 0 — Dependency Check
+## Phase 0 — Dependency Check + ADR Discovery
 
 ```bash
 ls ~/.claude/skills/skill-creator/ 2>/dev/null \
@@ -72,6 +82,18 @@ Fallback: if not found on filesystem, check the `available_skills` context for
 If either dependency is missing: stop and provide the install command before
 continuing. Do not proceed without both.
 
+**ADR directory discovery (dynamic — never hardcode):**
+
+```bash
+find . -type d \( -name "adr" -o -name "adrs" -o -name "decisions" \) \
+  -not -path "*/node_modules/*" \
+  -not -path "*/.git/*" \
+  -not -path "*/claude-context-backup/*"
+```
+
+Record all discovered ADR directories. In a monorepo each package may have its own.
+Store the list as `ADR_DIRS` — used in Phase 1 backup and Phase 2 Subagent B.
+
 ---
 
 ## Phase 1 — Backup
@@ -88,7 +110,11 @@ Destination: `./claude-context-backup/` preserving directory structure.
 mkdir -p ./claude-context-backup/docs
 cp ./CLAUDE.md ./claude-context-backup/ 2>/dev/null || true
 cp -r ./.claude ./claude-context-backup/ 2>/dev/null || true
-cp -r ./docs/adrs ./claude-context-backup/docs/ 2>/dev/null || true
+# Copy all ADR directories discovered in Phase 0
+for adr_dir in $ADR_DIRS; do
+  mkdir -p "./claude-context-backup/${adr_dir}"
+  cp -r "./${adr_dir}/." "./claude-context-backup/${adr_dir}/" 2>/dev/null || true
+done
 ```
 
 **Abort condition:** if `./claude-context-backup/` already exists, **abort and warn
@@ -212,11 +238,33 @@ Batch: <domain> (<scope>)
 Code exploration summary: <what was found>
 
 Row updates:
-- directive: "<text>" → decision: CLAUDE.md, confidence: H
-- directive: "<text>" → decision: path-rule:src/api/**/*.ts, confidence: M
+- directive: "<text>"
+  decision: CLAUDE.md
+  domain-file: "## Architecture"   ← section heading for CLAUDE.md
+  confidence: H
+
+- directive: "<text>"
+  decision: path-rule:apps/plaud-desktop/**
+  domain-file: api                 ← domain file stem → .claude/rules/api.md
+  when: "When working on any Electron desktop feature"
+  when-confidence: H               ← auto from package-root glob pattern
+  confidence: H
+
+- directive: "<text>"
+  decision: path-rule:renderer/**/*.tsx
+  domain-file: i18n
+  when: "When adding or modifying user-visible text or translations"
+  when-confidence: L               ← broad glob + specialized content
+  confidence: M
   Reason: <why M and not H>
-- directive: "<text>" → decision: skill:add-log-category, confidence: H
-- directive: "<text>" → decision: deprecated, confidence: H
+
+- directive: "<text>"
+  decision: skill:add-log-category
+  confidence: H
+
+- directive: "<text>"
+  decision: deprecated
+  confidence: H
   Reason: <why deprecated>
 ```
 
@@ -236,6 +284,7 @@ Present `.claude/rebuild-progress.md` to the user.
 **Optional adjustments:**
 - User may change any `decision result`
 - User may mark any row as `deprecated`
+- User may adjust any `when:` statement
 - User may add notes to any row
 
 **Presentation format:**
@@ -251,6 +300,22 @@ Present `.claude/rebuild-progress.md` to the user.
 | directive | decision result | confidence | reason |
 | ...       | ...             | ...        | ...    |
 
+### `when:` confirmation — Tier-A (explicit confirm required, when-confidence: L):
+These path-rule `when:` statements are uncertain — broad globs with specialized content.
+Approve or rewrite each one before Phase 6 executes.
+| directive | glob | proposed when: | approve/rewrite |
+| ...       | ...  | ...            | ...             |
+
+### `when:` confirmation — Tier-B (batch confirm, when-confidence: M):
+Review and approve as a group, or flag individual items to adjust.
+| directive | glob | proposed when: |
+| ...       | ...  | ...            |
+
+### `when:` auto-applied (informational, when-confidence: H):
+Package-root globs — no confirmation needed. Shown for transparency.
+| directive | glob | when: |
+| ...       | ...  | ...   |
+
 ### Full table (for reference):
 [link to .claude/rebuild-progress.md]
 ```
@@ -261,6 +326,22 @@ after presenting. Wait for the user's reply.
 ---
 
 ## Phase 6 — Execution (non-ADR)
+
+**Pre-execution: CLAUDE.md section plan**
+
+Before dispatching any subagents, the main agent looks at all CLAUDE.md-destined rows
+and creates a section plan. Group directives by their `domain-file` heading value,
+then determine the final section order (behavioral rules first, architecture second,
+conventions third, commands last). This plan is passed to every CLAUDE.md subagent so
+all directives land in a coherent structure rather than being appended ad-hoc.
+
+Example section plan:
+```
+CLAUDE.md section plan:
+  ## Architecture     → directives: [row 3, row 7, row 12]
+  ## Conventions      → directives: [row 5, row 8]
+  ## Build & Test     → directives: [row 14, row 19]
+```
 
 For each confirmed, non-deprecated table row (status: `in-progress`, not
 `conflict-blocked` or `deprecated`):
@@ -273,10 +354,13 @@ parallelism optimization — correctness is not affected by batch boundaries.
 
 Each subagent:
 1. Reads the table row: directive text, sources (file:lines for original content),
-   decision result, scope
+   decision result, domain-file, when: (for path-rule rows), scope
 2. Calls handle-one-directive in rebuild-execute mode
 3. handle-one-directive runs Step 4 (enrichment) + Step 5 (write)
-4. After writing: updates the table row `status` to `done` and `final file` to the
+4. For **path-rule** rows: write to `.claude/rules/<domain-file>.md` —
+   **overwrite** (not append) since Phase 1 cleared originals; include `when:` in frontmatter
+5. For **CLAUDE.md** rows: write under the pre-planned section heading
+6. After writing: updates the table row `status` to `done` and `final file` to the
    exact path written
 
 After all subagents complete, verify all non-deprecated rows have status `done`.

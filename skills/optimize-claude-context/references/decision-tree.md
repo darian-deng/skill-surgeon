@@ -106,7 +106,8 @@ Apply the layer selection rules in strict order. Stop at the first match.
 |---|---|---|
 | 1 | Multi-step procedure: sequential steps, order matters, cross-file or cross-command | **Skill** |
 | 2 | scope=`root`, behavioral rule (must-always-do, applies every session) | **CLAUDE.md** |
-| 3 | scope=`<package-path>`, lookup / reference content | **Path rule** with `paths:` glob |
+| 3 | scope=`<package-path>`, lookup / reference content, LOW collateral damage | **Path rule** with `paths:` glob |
+| 3b | scope=`<package-path>`, lookup / reference, HIGH collateral damage, clear semantic trigger | **Skill** (fallback from path-rule) |
 | 4 | Explanatory rationale ("why we chose X over Y") | **ADR** |
 | 5 | None of the above | deprecated |
 
@@ -114,11 +115,29 @@ Apply the layer selection rules in strict order. Stop at the first match.
 regardless of scope. A cross-cutting procedure that applies to all packages is still
 a Skill, not CLAUDE.md.
 
+**Path rule is preferred over Skill for single rules.** Skill is the fallback only when
+path-rule's glob causes excessive collateral damage (fires frequently in scenarios where
+the content is irrelevant). Any rule can theoretically be semantically described — that
+alone is NOT sufficient reason to choose Skill over path-rule.
+
+**Collateral damage test (apply when tentatively routing to path-rule):**
+> "Does this glob fire in scenarios where the content is irrelevant to the current task?"
+- LOW damage (glob closely matches when content is needed) → keep path-rule
+- HIGH damage (glob fires broadly, content only matters in a specific sub-scenario) → route to Skill
+
 **Procedure vs. rule distinction:**
 - Procedure: has ordered steps, involves multiple files or commands, order matters.
   Example: "How to add a new log category" (create file → register → update index).
 - Rule: a single behavioral constraint with no ordered steps.
   Example: "Always use structuredLogger for runtime logging."
+
+**When routing to path-rule, immediately determine:**
+1. **`domain-file`**: which `.claude/rules/<domain>.md` file receives this directive.
+   Group by functional area (auth, api, logging, testing, etc.) — use the Phase 3
+   domain grouping name as the domain file stem.
+2. **`when:` statement**: one sentence describing the work scenario where this content
+   is relevant. See `writing-formats.md §Path Rule Format` for guidance and confidence tiers.
+   Record `when-confidence` (H/M/L) alongside the decision result.
 
 **ADR vs. CLAUDE.md distinction:**
 - ADR: explains *why* — the trade-off analysis, what alternatives were rejected.
@@ -208,3 +227,5 @@ Check for content in the wrong layer. Each symptom maps to a fix.
 | Behavioral rule buried in ADR body | Rule ≠ rationale | Extract rule to CLAUDE.md; keep only rationale in ADR |
 | Skill description > 15 words | Exceeds hard limit | Trim or run skill-creator eval loop |
 | Rule without `paths:` frontmatter | Loads unconditionally | Add `paths:` or migrate to CLAUDE.md |
+| Rule with `paths:` but no `when:` | Claude cannot self-filter relevance | Add `when:` field describing the work scenario |
+| Rule where glob fires much broader than `when:` scenario | High collateral damage | Evaluate migration to Skill |

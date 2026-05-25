@@ -179,13 +179,16 @@ Create or update `./.claude/rules/<domain>.md`:
 ---
 paths:
   - "<glob>"
+when: "<one sentence: the work scenario where this content is relevant>"
 ---
 # <Domain> Conventions
 ```
 
 - Lookup/reference content only; not workflow instructions
 - `paths:` frontmatter required; use CSV format if YAML list is unreliable
-- After writing: confirm `paths:` frontmatter is present
+- `when:` required; write it at Step 3 — see confidence guidance in `decision-tree.md §Step 3`
+- In rebuild-execute mode: **overwrite** the file (Phase 1 cleared originals); do not append
+- After writing: confirm both `paths:` and `when:` frontmatter are present
 
 ### Skill
 
@@ -225,7 +228,8 @@ Run these checks after every write, regardless of mode:
 | Target | Check | Command |
 |---|---|---|
 | CLAUDE.md | Line count within budget | `wc -l ./CLAUDE.md` |
-| Path rule | `paths:` frontmatter present | `head -5 .claude/rules/<file>.md` |
+| Path rule | `paths:` frontmatter present | `head -6 .claude/rules/<file>.md` |
+| Path rule | `when:` frontmatter present | `head -6 .claude/rules/<file>.md` |
 | Skill | description ≤ 15 words | count words in description field |
 | ADR | Consequences non-empty | read Consequences section |
 | Any | File actually created/modified | `ls -la <target-path>` |
