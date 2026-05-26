@@ -41,7 +41,10 @@ finding type codes only; do not define or redefine deduction values here.
 wc -l ./CLAUDE.md
 find .claude/rules -name "*.md" | sort
 find .claude/skills -name "SKILL.md" | sort
-find docs/adrs -name "*.md" | sort 2>/dev/null
+# Dynamic ADR discovery — same pattern as rebuild Phase 0
+find . -type d \( -name "adr" -o -name "adrs" -o -name "decisions" \) \
+  -not -path "*/node_modules/*" -not -path "*/.git/*" \
+  | xargs -I{} find {} -name "*.md" | sort 2>/dev/null
 ```
 
 Record file count and line counts.

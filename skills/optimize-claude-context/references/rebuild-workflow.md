@@ -47,7 +47,7 @@ State persists in `.claude/rebuild-progress.md`. Three sections.
 - **stale**: `Y` if glob matches no files in current codebase, or content references patterns/APIs no longer present
 - **linter-graduate**: `FULL` if entire core purpose is achievable by linter + code comments combined (→ delete candidate); `PARTIAL` if some rules can be linted; empty if not applicable
 - **scope-issue**: `Skill` if content is highly scenario-specific within the glob's scope and no file pattern captures the trigger; empty otherwise
-- **recommendation**: `KEEP` / `DELETE` / `SKILL` / `REVIEW`
+- **recommendation**: `KEEP` / `DELETE` / `SKILL` (no REVIEW — partial linter opportunities are noted in the evaluation output and kept as KEEP; developer follows up manually)
 - **developer-action**: filled by user in Phase 5: `keep` / `delete` / `skill` / `keep-with-notes:<notes>`
 - **status**: `pending` → `evaluated` → `done`
 
@@ -232,11 +232,13 @@ the glob's scope?
 "Is this content relevant for ALL work within the glob's scope, or only for a
 SPECIFIC TYPE of work within the scope?"
 
-- ALL work in scope → LOW collateral damage → `recommendation: KEEP`
-- SPECIFIC TYPE of work → HIGH collateral damage → assess: does any narrower file
-  pattern exist that would be open ONLY during that specific type of work?
-  - If YES → note the narrower glob candidate; `recommendation: REVIEW`
-  - If NO → the trigger is purely semantic; `recommendation: SKILL`
+- ALL work in scope → `recommendation: KEEP`
+- SPECIFIC TYPE of work, and the trigger is purely semantic (no file pattern can
+  capture "the developer is doing X") → `recommendation: SKILL`
+
+**Do NOT attempt to suggest a narrower glob.** Narrowing requires understanding the
+original author's intent, which cannot be reliably inferred from content alone. A
+wrong narrowing is worse than the current broad glob.
 
 **Step 5 — Auto-write `when:` (always, no user confirmation)**
 
@@ -244,9 +246,13 @@ Based on the file's content AND code exploration findings, write a `when:` state
 that describes the work scenario where this file's guidance is relevant.
 
 The `when:` is written to the Track B table automatically. It will be inserted into
-the file's frontmatter during Phase 6 execution — regardless of whether the file
-is KEEP, REVIEW, or pending developer decision. It serves future `handle-one-directive`
-calls and `audit` assessments.
+the file's frontmatter during Phase 6 execution for every KEEP file. It serves future
+`handle-one-directive` calls and `audit` assessments.
+
+Track B has exactly three recommendation values: `KEEP` / `DELETE` / `SKILL`.
+There is no `REVIEW` state. If `linter-graduate: PARTIAL`, recommendation is `KEEP`
+with a note in the output describing the linter opportunity — the developer decides
+whether to follow up manually. Never split or partially strip the file.
 
 **Subagent output format per file:**
 
@@ -260,31 +266,58 @@ Linter-graduate: FULL — core purpose (use createLogger, not raw console)
   can be enforced by ESLint no-restricted-syntax on ConsoleExpression +
   createLogger's own JSDoc documents domain/level pattern
   Reference: https://eslint.org/docs/latest/rules/no-restricted-syntax
-Scope-issue: N/A (filing as DELETE candidate)
 Recommendation: DELETE
 when: "When adding or modifying log calls in Electron main process or preload"
 
+File: ui-tokens.md
+Glob: renderer/**/*.tsx
+Code exploration: CSS variables and shadcn components used across all renderer files
+Stale: No
+Linter-graduate: No
+Linter-graduate-partial: Line 8 (no hardcoded color values) could be enforced via
+  ESLint no-restricted-syntax on Literal hex patterns — but remaining content has
+  standalone value. Noting as linter opportunity for developer follow-up.
+Recommendation: KEEP
+when: "When developing Renderer UI components, selecting colors, spacing, or tokens"
+
 File: i18n.md
 Glob: apps/plaud-desktop/src/renderer/**/*.tsx
-Code exploration: 10 languages in locales/, react-i18next in use, hardcoded
-  strings found in 3 legacy files
+Code exploration: 10 languages in locales/, react-i18next in use
 Stale: No
-Linter-graduate: No — "10 languages must stay in sync" requires human judgment;
-  no linter rule enforces cross-locale key consistency
-Scope-issue: Skill — content is scenario-specific (adding user-visible text);
-  no file pattern captures "I am adding user-facing copy" vs. "I am refactoring logic"
+Linter-graduate: No
+Scope-issue: SPECIFIC TYPE — content is scenario-specific (adding user-visible text);
+  no file pattern captures "adding user-facing copy" vs. "refactoring logic"
 Recommendation: SKILL
 when: "When adding or modifying user-visible text, UI copy, or translations"
 ```
 
 ---
 
-## Phase 4 — Track A: Decision Tree Evaluation
+## Phase 4 — Track A: Decision Tree Evaluation + ADR Pre-screening
 
-**Applies to Track A only (CLAUDE.md directives).** Track B was fully evaluated in Phase 3B.
+**Track A (CLAUDE.md directives)** is evaluated here. Track B was fully evaluated in Phase 3B.
 
 **IMPORTANT:** This phase writes results to the table only. No context layer files
 are written here.
+
+Skip rows with status `conflict-blocked`.
+
+**ADR Pre-screening (parallel with Track A evaluation):**
+
+ADR Check 2 (covered by a Phase 6 directive?) depends on Phase 6 results and must
+wait for Phase 7. But Check 1 and Check 3 are fully independent — run them now in
+parallel with Track A subagents to give the user richer information at Phase 5.
+
+Dispatch one ADR pre-screening subagent alongside Track A batches:
+- **Check 1**: Does each ADR meet the ADR definition? (Non-obvious architectural
+  decision, trade-off analysis, would confuse future contributors without it?)
+  If not → mark `pre-screen: fails-definition`
+- **Check 3**: Can the rationale be expressed as a short inline code comment?
+  If yes → mark `pre-screen: replaceable-by-comment`, note suggested comment text
+
+Only run Check 1 and Check 3. Do NOT run Check 2 here. Results are written to the
+ADR table's `pre-screen` column. Phase 7 will run Check 2 (and confirm/override
+pre-screen results) after Phase 6 completes.
 
 Skip rows with status `conflict-blocked`.
 
@@ -368,22 +401,20 @@ Present both tracks to the user.
 ### Track B — Path-Rule Files
 
 #### DELETE candidates (linter + comments fully cover core purpose):
-For each: confirm delete, or override to keep.
+For each: confirm delete, or override to keep. If overriding, state reason.
 | file | glob | why linter covers it | linter config hint | your decision |
-| ...  | ...  | ...                  | ...                | keep/delete   |
+| ...  | ...  | ...                  | ...                | keep / delete |
 
-#### SKILL candidates (scope too broad, no narrower file pattern):
+#### SKILL candidates (content scenario-specific, no file pattern captures trigger):
 For each: confirm migrate to Skill, or override to keep.
 | file | glob | why Skill | your decision |
-| ...  | ...  | ...       | keep/skill    |
+| ...  | ...  | ...       | keep / skill  |
 
-#### REVIEW candidates (partial linter opportunity or uncertain):
-| file | glob | notes | your decision |
-| ...  | ...  | ...   | ...           |
-
-#### KEEP files (informational — auto-written `when:` shown):
-| file | glob | when: (auto) |
-| ...  | ...  | ...          |
+#### KEEP files (informational — `when:` auto-written, shown for transparency):
+Partial linter opportunities are noted in the evaluation output — developer may
+follow up manually. No action required to proceed.
+| file | glob | when: (auto) | linter-partial note |
+| ...  | ...  | ...          | ...                 |
 ```
 
 **Do not proceed to Phase 6 until the user explicitly confirms.**
@@ -451,11 +482,17 @@ Can be expressed as a short comment at the relevant code location? →
 `action: deprecated`; write suggested comment text to table row as note for user.
 
 **Check 4 — Valid and necessary.**
-Archive to `<project-root>/docs/adrs/` with original filename. Update or create
-`docs/adrs/README.md` index.
+ADRs are preserved in place during Phase 1 — no file move needed.
+Update or create the index at `<adr-dir>/README.md` (using the discovered path).
 
-**Deprecated ADRs:** move to `./claude-context-backup/docs/adrs/deprecated/`.
-Do not delete permanently, do not leave in `docs/adrs/`.
+**ADR directory convention:** canonical path is `docs/adr/` (singular — matches
+adr-tools origin and grill-with-docs). If creating a new ADR directory, always
+use `docs/adr/`; never `docs/adrs/`. In a monorepo, package-specific ADRs go in
+`<package>/docs/adr/`. Dynamic discovery in Phase 0 handles both spellings for
+existing projects.
+
+**Deprecated ADRs:** move to `./claude-context-backup/<adr-dir>/deprecated/`.
+Do not delete permanently, do not leave in the active ADR directory.
 
 ---
 
