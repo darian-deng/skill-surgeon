@@ -7,8 +7,8 @@ description: >
   "add a rule", "这个要加进去", "帮 Claude 记住"), rebuild (reprocess all existing
   context from scratch — "rebuild", "重建", "start fresh"), audit (score the health
   of the current context layer — "audit", "health check", "评分", "what's wrong
-  with my CLAUDE.md"). Also use proactively when noticing bloat, wrong-layer
-  content, or linter-enforceable rules in a project's CLAUDE.md.
+  with my CLAUDE.md"). Also proactively suggest audit when noticing bloat or
+  wrong-layer content — never modify files without explicit user confirmation.
 ---
 
 # CRITICAL — Read first
@@ -72,6 +72,9 @@ All three commands depend on:
 - [references/decision-tree.md](references/decision-tree.md) — routing logic
 - [references/linter-capabilities.md](references/linter-capabilities.md) — linter check methodology
 - [references/writing-formats.md](references/writing-formats.md) — content specs per layer
+
+`handle-one-directive.md` is also an internal dependency of rebuild (Phase 6
+execution unit) — read it when executing rebuild Phase 6.
 
 Read the relevant reference file before executing any command. Do not rely on
 memory of the decision tree — always read from `decision-tree.md`.
