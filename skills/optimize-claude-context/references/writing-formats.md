@@ -163,14 +163,23 @@ not a restatement of the glob pattern.
 - ✅ `"When working on authentication flows or session management"`
 - ❌ `"When files match renderer/**/*.tsx"` — this is the glob, not the scenario
 
-`when:` tells Claude whether to pay attention to this file's content given the
-current task. Without it, Claude treats all loaded path-rules as equally relevant,
-causing collateral noise when the task has nothing to do with the rule's domain.
+`when:` is a **post-load behavioral hint**, not a pre-load filter. The file is
+loaded into context whenever the glob matches — `when:` does NOT prevent this
+and does NOT reduce token cost. Its value is behavioral: it tells Claude when
+to ACT on the content vs. treat it as background context.
 
-**`when:` confidence and who writes it:**
-- `apps/X/**` or `packages/X/**` (package-root globs) → auto-inferred as "When working on X features" — no user confirmation needed
-- Domain path + content analysis → AI proposes, user confirms in Phase 5 Tier-B
-- Broad glob + specialized content (low overlap) → AI proposes, user must explicitly confirm in Phase 5 Tier-A
+This means `when:` alone does NOT solve the context-budget problem for HIGH
+collateral damage rules. The correct solutions for HIGH collateral damage are:
+1. **Narrow the glob** — find a more specific file pattern that only matches
+   when the content is genuinely needed (e.g., `logger.ts` instead of `main/**/*.ts`)
+2. **Route to Skill** — when no narrower glob exists and the trigger is purely
+   semantic (e.g., "when adding user-visible text" has no corresponding file pattern)
+
+**`when:` is always auto-written — no user confirmation needed.** Infer it from
+the file's content and glob together, not from the glob alone. Write the work scenario
+the developer would be in when this file's guidance is most needed. For rebuild, the
+`when:` is written during Phase 3B code exploration when the full codebase context
+is available, resulting in more accurate scenario descriptions.
 
 **Content constraints:**
 - Lookup / reference only — not workflow instructions (those go to Skill)

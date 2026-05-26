@@ -104,26 +104,31 @@ Apply the layer selection rules in strict order. Stop at the first match.
 
 | Priority | Condition | Target layer |
 |---|---|---|
-| 1 | Multi-step procedure: sequential steps, order matters, cross-file or cross-command | **Skill** |
+| 1 | Multi-step procedure **AND** Skill will be fully developed (not a stub) | **Skill** |
+| 1b | Multi-step procedure, but Skill body won't be developed soon | **Path rule** (keep procedure in lookup/reference form) |
 | 2 | scope=`root`, behavioral rule (must-always-do, applies every session) | **CLAUDE.md** |
-| 3 | scope=`<package-path>`, lookup / reference content, LOW collateral damage | **Path rule** with `paths:` glob |
-| 3b | scope=`<package-path>`, lookup / reference, HIGH collateral damage, clear semantic trigger | **Skill** (fallback from path-rule) |
+| 3 | scope=`<package-path>`, lookup / reference content | **Path rule** with `paths:` glob |
+| 3b | scope=`<package-path>`, content scenario-specific within glob scope AND no file pattern captures the trigger | **Skill** |
 | 4 | Explanatory rationale ("why we chose X over Y") | **ADR** |
 | 5 | None of the above | deprecated |
 
-**Tiebreaker (priority 1 always wins):** a multi-step procedure routes to Skill
-regardless of scope. A cross-cutting procedure that applies to all packages is still
-a Skill, not CLAUDE.md.
+**Priority 1 condition explained:** a Skill stub without a body is a negative asset —
+it loads semantically but provides no guidance. If the procedure is already documented
+in an existing path-rule with a sufficiently precise glob, keeping it in path-rule is
+better than an empty stub. Only route to Skill when the user commits to developing it.
 
-**Path rule is preferred over Skill for single rules.** Skill is the fallback only when
-path-rule's glob causes excessive collateral damage (fires frequently in scenarios where
-the content is irrelevant). Any rule can theoretically be semantically described — that
-alone is NOT sufficient reason to choose Skill over path-rule.
+**Path rule is the default for single rules.** Skill (Priority 3b) is the fallback
+only when the trigger is purely semantic — no file pattern captures "the user is doing X".
 
-**Collateral damage test (apply when tentatively routing to path-rule):**
-> "Does this glob fire in scenarios where the content is irrelevant to the current task?"
-- LOW damage (glob closely matches when content is needed) → keep path-rule
-- HIGH damage (glob fires broadly, content only matters in a specific sub-scenario) → route to Skill
+**Scope vs content judgment (Priority 3 vs 3b):**
+> "Is this content relevant for ALL work within the glob's scope, or only for a SPECIFIC TYPE of work within that scope?"
+- ALL work → path-rule (LOW collateral damage; `when:` provides behavioral guidance)
+- SPECIFIC TYPE → no file pattern captures the scenario → Skill
+
+Note: for **existing path-rule files** in rebuild, this judgment is made holistically
+per file in Phase 3B (not per directive). AI must not attempt to "narrow the glob"
+for existing files — that requires understanding the original author's intent, which
+cannot be reliably inferred from content alone.
 
 **Procedure vs. rule distinction:**
 - Procedure: has ordered steps, involves multiple files or commands, order matters.
@@ -136,8 +141,9 @@ alone is NOT sufficient reason to choose Skill over path-rule.
    Group by functional area (auth, api, logging, testing, etc.) — use the Phase 3
    domain grouping name as the domain file stem.
 2. **`when:` statement**: one sentence describing the work scenario where this content
-   is relevant. See `writing-formats.md §Path Rule Format` for guidance and confidence tiers.
-   Record `when-confidence` (H/M/L) alongside the decision result.
+   is relevant. See `writing-formats.md §Path Rule Format` for guidance.
+   Write automatically — no user confirmation needed. The `when:` is a behavioral
+   hint for Claude (when to act on the content), not a pre-load filter.
 
 **ADR vs. CLAUDE.md distinction:**
 - ADR: explains *why* — the trade-off analysis, what alternatives were rejected.
