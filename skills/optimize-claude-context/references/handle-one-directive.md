@@ -1,7 +1,7 @@
 # handle-one-directive
 
-The atomic unit of the optimize-claude-context skill. All other workflows
-(rebuild, feat-flow) ultimately call this operation.
+The atomic unit of the optimize-claude-context skill. The rebuild command and
+any external pre-parsed callers ultimately route through this operation.
 
 References:
 - `decision-tree.md` — Steps 0-3
@@ -131,13 +131,20 @@ CONFLICT detected
 
 ## Step 3 — Layer Routing
 
-Apply the layer selection rules from `decision-tree.md` Step 3 in priority order:
+Apply the full priority table from `decision-tree.md` Step 3:
 
-1. Multi-step procedure? → **Skill**
-2. scope=`root`, behavioral rule? → **CLAUDE.md**
-3. scope=`<package-path>`, lookup/reference? → **Path rule**
-4. Explanatory rationale? → **ADR**
-5. None → **deprecated**
+| Priority | Condition | Target |
+|---|---|---|
+| 1 | Multi-step procedure AND Skill will be developed | **Skill** |
+| 1b | Multi-step procedure, Skill body won't be developed soon | **Path rule** |
+| 2 | scope=`root`, behavioral rule (every session) | **CLAUDE.md** |
+| 3 | scope=`<package-path>`, lookup/reference, LOW collateral damage | **Path rule** |
+| 3b | scope=`<package-path>`, scenario-specific, no file pattern captures trigger | **Skill** |
+| 4 | Explanatory rationale ("why we chose X") | **ADR** |
+| 5 | None of the above | deprecated |
+
+See `decision-tree.md` Step 3 for full guidance on each priority, including the
+collateral damage test and the distinction between Priority 1 and 1b.
 
 ---
 
@@ -211,11 +218,13 @@ After writing: count words in description; confirm ≤15 words.
 
 ### ADR
 
-Create `./docs/adrs/NNNN-<slug>.md` using the Nygard template from `writing-formats.md`.
+Create `./docs/adr/NNNN-<slug>.md` using the Nygard template from `writing-formats.md`.
+In a monorepo, package-specific ADRs go in `<package>/docs/adr/NNNN-<slug>.md`.
+See `directive.md` for the authoritative ADR path convention.
 
 Assign the next sequential ADR number. Check existing ADRs to determine next number.
 
-Update or create `./docs/adrs/README.md` index with the new entry.
+Update or create `./docs/adr/README.md` index with the new entry.
 
 After writing: confirm Consequences section is non-empty.
 

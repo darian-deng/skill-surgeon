@@ -74,6 +74,12 @@ Apply in this strict order:
 **Key tiebreaker:** multi-step procedure → Skill, regardless of scope. A
 cross-cutting procedure that applies to all packages is still a Skill, not CLAUDE.md.
 
+**ADR path convention (authoritative):** ADRs live at `docs/adr/` (singular).
+In a monorepo, project-wide ADRs go in `<project-root>/docs/adr/`; package-specific
+ADRs go in `<package>/docs/adr/`. Dynamic discovery handles both `adr` and `adrs`
+spellings for existing projects. When creating a new ADR directory, always use
+`docs/adr/` — never `docs/adrs/`.
+
 **Routing confidence:** every routing decision carries a confidence level (H/M/L)
 that captures how many plausible layers exist for that directive. Confidence is a
 decision-tree output concept, not part of the directive definition itself — see

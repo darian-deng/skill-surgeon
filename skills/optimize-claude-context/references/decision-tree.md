@@ -204,7 +204,7 @@ Assign a confidence level to each routing decision. Used in rebuild Phase 4 tabl
 | Cross-cutting procedure | `root` | `./.claude/skills/<name>/SKILL.md` |
 | Package-specific conventions | `apps/x/` | `./.claude/rules/<domain>.md` with `paths: "apps/x/**"` |
 | Package-specific procedure | `apps/x/` | Still Skill (priority 1 always wins) |
-| Decision rationale | any | `./docs/adrs/NNNN-<slug>.md` (always at project root) |
+| Decision rationale | any | `./docs/adr/NNNN-<slug>.md` (project root) or `<package>/docs/adr/NNNN-<slug>.md` (package-specific in monorepo) |
 
 Monorepo layout example:
 ```

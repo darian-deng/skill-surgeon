@@ -154,6 +154,9 @@ when: "When working with API endpoint code"
 ---
 ```
 
+Both `paths:` formats (YAML list and CSV) must include the `when:` field on the
+line immediately after `paths:`.
+
 **`when:` field (required):**
 
 One sentence describing the **work scenario** where this content is relevant —
@@ -268,7 +271,9 @@ date: YYYY-MM-DD
 **Quality gates:**
 - `Consequences` must not be empty — a decision without consequences is incomplete.
 - `Alternatives Considered` must name at least one alternative with a rejection reason.
-- ADRs always live at `<project-root>/docs/adrs/` regardless of monorepo structure.
+- ADR path convention: `docs/adr/` at project root (singular — matches adr-tools
+  origin); in a monorepo, package-specific ADRs go in `<package>/docs/adr/`.
+  See `directive.md` for the authoritative path rule.
 - ADR number is zero-padded 4-digit, e.g., `0001`, `0042`.
 
 **ADR definition:** a non-obvious architectural decision that required trade-off

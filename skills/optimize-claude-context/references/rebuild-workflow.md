@@ -132,6 +132,19 @@ rm -rf ./.claude/rules/ ./.claude/skills/
 
 Global `~/.claude/CLAUDE.md` is NOT backed up — read in Phase 2 but never modified.
 
+**Recovery from mid-rebuild interruption (Phase 2–5):**
+
+If the rebuild is interrupted after Phase 1 (originals deleted, backup exists),
+`claude-context-backup/` will block a fresh restart. To recover:
+
+1. Restore originals from backup: `cp -r claude-context-backup/.claude . && cp claude-context-backup/CLAUDE.md .`
+2. Rename backup: `mv claude-context-backup/ claude-context-backup-prev/`
+3. Check `.claude/rebuild-progress.md` — if rows exist with `in-progress` or
+   `evaluated` status, you can resume from the last completed phase rather than
+   restarting from Phase 2. Read the table to determine which phases are done.
+4. If restarting from Phase 6, all Track A rows should be `in-progress` and Track B
+   rows `evaluated` — jump directly to Phase 6 execution.
+
 ---
 
 ## Phase 2 — Collection
@@ -220,9 +233,16 @@ See `linter-capabilities.md` for enforcement mechanisms.
 - If YES (linter + comments fully cover the core purpose) → `linter-graduate: FULL`,
   `recommendation: DELETE`. The file has no remaining value in the context layer.
 - If PARTIAL (some rules can be linted, but the remaining content still has value) →
-  `linter-graduate: PARTIAL`, note which rules in the `recommendation` field.
-  Do NOT strip individual lines — surface for developer decision as a whole.
+  `linter-graduate: PARTIAL`, note the linter opportunity. `recommendation: KEEP`.
+  Do NOT strip individual lines — surface as a note for developer follow-up.
 - If NO → proceed to Step 4.
+
+**Why Track B allows "linter + code comments" while Track A (individual directives)
+only uses linter:** Track B evaluates whole domain files that contain both enforcement
+rules (linter-addressable) AND explanatory content (why this pattern, what context,
+what to watch for). Explanatory content cannot be linter-enforced but CAN be captured
+in JSDoc or inline comments in the relevant code. Track A deals with single atomic
+rules where the question is simply "can this constraint be mechanically enforced?"
 
 **Step 4 — Scope vs content alignment**
 
@@ -325,7 +345,7 @@ Group remaining Track A rows by domain. For each batch of 3-4 directives from th
 same domain, dispatch one subagent:
 
 1. Uses `feature-dev:code-explorer` to explore relevant code (shared per batch)
-2. Applies decision-tree.md Steps 0-3 for each directive
+2. Applies decision-tree.md Steps 1-3 for each directive (Step 0 skipped — Phase 2 already guarantees atomicity)
 3. Writes `decision result`, `domain-file`, `confidence` back to each row
 4. Does NOT write any context layer files
 
@@ -445,7 +465,7 @@ and creates a section plan. Group by `domain-file` heading, determine order
 (behavioral rules first, architecture second, conventions third, commands last).
 This plan is passed to every subagent so all directives land in coherent structure.
 
-For each confirmed, non-deprecated Track A row:
+For each confirmed, non-deprecated, non-conflict-blocked Track A row:
 
 Call handle-one-directive in **rebuild-execute mode** (starts at Step 4, enrichment).
 

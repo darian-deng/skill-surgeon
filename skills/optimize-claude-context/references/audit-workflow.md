@@ -105,7 +105,7 @@ grep -r "<tool-name>" . --include="package.json" --include="*.toml" \
 
 ### Step 5 — ADR validation
 
-For each ADR in `./docs/adrs/`:
+For each ADR in the directories discovered in Step 1:
 
 1. Does it meet the ADR definition? (Non-obvious architectural decision with
    trade-off rationale. Would a future contributor be confused without it?)
@@ -218,10 +218,17 @@ Audit produces findings only — it does not fix them. Each finding becomes inpu
 |---|---|
 | `WRONG_LAYER` | "Move this directive to the correct layer: [paste directive text]" |
 | `LINTER_GRADUATION` | "Graduate this to the linter: [paste config + citation]" |
-| `STALE` | "Update or remove this stale directive: [paste directive text]" |
+| `STALE` | "Update this stale directive: [paste updated version]" or "Remove this stale directive: [paste text]" |
 | `MISSING_PATHS` | "Add paths: frontmatter to this rule: [paste rule content]" |
+| `MISSING_WHEN` | "Add when: field to this path rule: [paste rule file path]" |
 | `GLOBAL_MISPLACED` | "Move this from global CLAUDE.md to project: [paste text]" |
 | `INCOMPLETE_ADR` | "Add Consequences section to ADR: [paste ADR path]" |
+| `STUB_INCOMPLETE` | "Complete this skill stub using skill-creator: [paste skill name]" |
+| `DESC_TOO_LONG` | "Shorten this skill description to ≤15 words: [paste current description]" |
+| `IMPORT_REF` | "Remove @import from CLAUDE.md and inline or migrate: [paste @import line]" |
+| `ADR_INVALID` | "Deprecate this ADR — it does not meet the ADR definition: [paste ADR path]" |
+| `ADR_DUPLICATE` | "Deprecate this ADR — content already covered by CLAUDE.md directive: [paste both]" |
+| `ADR_REPLACEABLE` | "Replace this ADR with a code comment: [paste suggested comment]" |
 
 One call per finding. handle-one-directive runs the full decision tree and writes
 the fix.
