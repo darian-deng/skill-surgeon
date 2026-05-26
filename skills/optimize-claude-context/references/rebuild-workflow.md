@@ -603,33 +603,36 @@ more AI-readable using these specific improvements:
 
 1. **Imperative form**: "It's preferred that..." → "Use..." — direct commands only.
 
-2. **Positive phrasing with exceptions**: flip prohibitions to positive where the
-   positive form is equally precise. Exception: if a directive describes a concrete
-   failure mode or uses a very specific scenario formulation (e.g., "Do not add event
-   handlers when the framework manages reactivity"), preserve the negative — it likely
-   exists because of a real incident. Generic negatives → flip; specific negatives → keep.
+2. **Positive phrasing with exceptions**: flip generic prohibitions to positive where
+   the positive form is equally precise (e.g., "Don't use var" → "Use const or let").
+   **When uncertain, preserve the negative — do not flip.** Only flip when you are
+   confident the directive is generic advice, not a scenario-specific guard.
+   Specific scenario formulations (e.g., "Do not add event handlers when the framework
+   manages reactivity") must be kept as-is — they likely encode a real incident.
    When keeping a prohibition, ensure it has rationale + alternative in the same bullet:
    `Never X — it causes Y. Use Z instead.`
+   Record every flipped negative in the subagent output as:
+   `rewrite: flipped negative — "<original>" → "<new>"` so Phase 8 diff is reviewable.
 
 3. **Domain concepts over file paths**: if the directive references a specific file path
    (e.g., `src/auth/handler.ts`), replace with the domain concept it represents
    (e.g., `authentication layer`) — paths break on refactors, concepts survive.
-   Use code exploration context from Phase 3B/4 to verify the concept name.
+   Only apply this rule if you can verify the concept name from Phase 6's own code
+   exploration (dispatched fresh in this step if needed). If no code context is
+   available, preserve the file path as-is — do not guess the concept name.
 
 4. **One instruction per bullet**: if a bullet contains multiple unrelated rules joined
-   by "and" or commas, split into separate bullets.
+   by "and" or commas, split into separate bullets. Exception: if the two parts are
+   jointly conditioned ("when X, do A and B" where A and B must co-occur), preserve
+   the joint structure — splitting would weaken the constraint.
 
 5. **Commands in code fences**: any command, flag, or code snippet mentioned in prose
    should move to an inline code span or fenced block.
 
-6. **Remove noise**: if a directive states something Claude would do correctly without
-   being told ("write clean code", "handle errors gracefully"), remove it. Only keep
-   directives where removal would cause a project-specific mistake.
-
 **Hard constraint — do NOT:**
 - Delete a directive based on your own judgment during this step (that is Phase 5's job)
 - Change the semantic intent of a directive (rewrite wording, not meaning)
-- Flip a highly specific negative that reads like it came from a real incident
+- Flip a negative when uncertain — default is to keep
 
 **Recovery:** any `in-progress` rows after all subagents complete → call
 handle-one-directive rebuild-execute mode manually for each, then set `done`.
@@ -685,14 +688,33 @@ Since Phase 6 rewrites directive wording (not just routes them), show the user a
 content diff alongside the new files so they can verify rewrites preserved intent:
 
 ```bash
-diff -u claude-context-backup/CLAUDE.md CLAUDE.md | head -80
+# CLAUDE.md diff (use /dev/null as source if no backup exists)
+diff -u claude-context-backup/CLAUDE.md CLAUDE.md 2>/dev/null \
+  || diff -u /dev/null CLAUDE.md | head -80
+
 # For each rewritten rule file:
-diff -u claude-context-backup/.claude/rules/<file>.md .claude/rules/<file>.md | head -40
+for f in .claude/rules/*.md; do
+  base=$(basename "$f")
+  backup="claude-context-backup/.claude/rules/$base"
+  if [ -f "$backup" ]; then
+    diff -u "$backup" "$f" | head -40
+  else
+    echo "--- (new file, no backup) $f"
+    head -20 "$f"
+  fi
+done
+```
+
+For **skill migration files**, show a summary (content is verbatim, no rewrite applied):
+```
+Migrated to skill (content unchanged):
+  <source rule file> → .claude/skills/<name>/SKILL.md
 ```
 
 Tell the user: "Directives have been rewritten for clarity per project conventions.
-Review the diff above — if any rewrite changed the meaning you intended, edit the
-file directly before confirming."
+Review the diffs above — if any rewrite changed the meaning you intended, edit the
+file directly before confirming. Flipped negatives are tagged `rewrite: flipped
+negative` in the subagent output for targeted review."
 
 After user confirms:
 ```bash
