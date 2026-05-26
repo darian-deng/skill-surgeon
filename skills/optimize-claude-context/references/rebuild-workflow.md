@@ -532,6 +532,15 @@ For each Track B file with developer action confirmed:
 `when:` added to the frontmatter. Include any developer notes as comments.
 Write is **overwrite** (Phase 1 cleared originals).
 
+While writing, apply these content improvements to make the file more AI-readable:
+- **Imperative form**: instructions should be direct commands, not passive preferences
+- **One instruction per bullet**: if a bullet contains multiple rules joined by "and" or commas, split it
+- **Commands in code fences**: any command or code pattern mentioned in prose should move to a fenced block
+
+Do NOT apply positive-phrasing rewrites to path-rule content — reference files
+may intentionally use prohibitions to clearly mark boundaries. Preserve the author's
+semantic intent; improve only structure and form.
+
 **`delete`:** file is not written. Log to rebuild-progress.md as done/deleted.
 
 **`skill`:** write `.claude/skills/<name>/SKILL.md` with frontmatter AND the original
@@ -582,10 +591,45 @@ Batch by domain: 3-4 directives per subagent.
 Each subagent:
 1. Reads table row: directive text, sources, decision result, domain-file, scope
 2. Calls handle-one-directive in rebuild-execute mode
-3. For **CLAUDE.md** rows: write under the pre-planned section heading
+3. For **CLAUDE.md** rows: rewrite the directive applying the rules below, then write under the pre-planned section heading
 4. For **path-rule** rows (from CLAUDE.md wrong-layer content): write to
-   `.claude/rules/<domain-file>.md` with `when:` in frontmatter; overwrite
+   `.claude/rules/<domain-file>.md` with `when:` in frontmatter; overwrite; apply path-rule content improvements (same as Track B `keep`)
 5. Updates table row `status` to `done` and `final file` to exact path written
+
+**Content rewrite rules for CLAUDE.md directives (apply during step 3):**
+
+Treat the table text as the semantic intent to preserve. Rewrite the wording to be
+more AI-readable using these specific improvements:
+
+1. **Imperative form**: "It's preferred that..." → "Use..." — direct commands only.
+
+2. **Positive phrasing with exceptions**: flip prohibitions to positive where the
+   positive form is equally precise. Exception: if a directive describes a concrete
+   failure mode or uses a very specific scenario formulation (e.g., "Do not add event
+   handlers when the framework manages reactivity"), preserve the negative — it likely
+   exists because of a real incident. Generic negatives → flip; specific negatives → keep.
+   When keeping a prohibition, ensure it has rationale + alternative in the same bullet:
+   `Never X — it causes Y. Use Z instead.`
+
+3. **Domain concepts over file paths**: if the directive references a specific file path
+   (e.g., `src/auth/handler.ts`), replace with the domain concept it represents
+   (e.g., `authentication layer`) — paths break on refactors, concepts survive.
+   Use code exploration context from Phase 3B/4 to verify the concept name.
+
+4. **One instruction per bullet**: if a bullet contains multiple unrelated rules joined
+   by "and" or commas, split into separate bullets.
+
+5. **Commands in code fences**: any command, flag, or code snippet mentioned in prose
+   should move to an inline code span or fenced block.
+
+6. **Remove noise**: if a directive states something Claude would do correctly without
+   being told ("write clean code", "handle errors gracefully"), remove it. Only keep
+   directives where removal would cause a project-specific mistake.
+
+**Hard constraint — do NOT:**
+- Delete a directive based on your own judgment during this step (that is Phase 5's job)
+- Change the semantic intent of a directive (rewrite wording, not meaning)
+- Flip a highly specific negative that reads like it came from a real incident
 
 **Recovery:** any `in-progress` rows after all subagents complete → call
 handle-one-directive rebuild-execute mode manually for each, then set `done`.
@@ -636,6 +680,19 @@ find .claude/skills -name "SKILL.md" | xargs grep -l "status: stub" 2>/dev/null
 `~/.claude/CLAUDE.md` in Phase 2, list them and tell user to remove manually.
 
 **Present new context layer for review.**
+
+Since Phase 6 rewrites directive wording (not just routes them), show the user a
+content diff alongside the new files so they can verify rewrites preserved intent:
+
+```bash
+diff -u claude-context-backup/CLAUDE.md CLAUDE.md | head -80
+# For each rewritten rule file:
+diff -u claude-context-backup/.claude/rules/<file>.md .claude/rules/<file>.md | head -40
+```
+
+Tell the user: "Directives have been rewritten for clarity per project conventions.
+Review the diff above — if any rewrite changed the meaning you intended, edit the
+file directly before confirming."
 
 After user confirms:
 ```bash
