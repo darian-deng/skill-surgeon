@@ -260,6 +260,34 @@ SPECIFIC TYPE of work within the scope?"
 original author's intent, which cannot be reliably inferred from content alone. A
 wrong narrowing is worse than the current broad glob.
 
+**Evidence check after Step 4 judgment:** before finalising HIGH/LOW collateral
+damage, verify with a quick codebase check — do not rely on impression alone:
+
+```bash
+# What % of files in glob scope are topic-relevant?
+# Example for a logging rule with glob src/main/**/*.ts:
+grep -rl "createLogger\|logger\." src/main/ --include="*.ts" | wc -l
+find src/main -name "*.ts" | wc -l
+# Reference heuristic (not a hard rule — user makes the final call):
+#   <30% topic-relevant → likely HIGH collateral damage → lean SKILL
+#   >60% topic-relevant → likely LOW collateral damage → lean KEEP
+#   30–60% → surface as M confidence and let user decide
+# These thresholds are starting points for discussion, not mechanical cutoffs.
+```
+
+The specific grep pattern should match the rule file's core topic, not a generic term.
+
+**Step 4 output must label the basis for every judgment:**
+
+```
+Scope judgment: SPECIFIC TYPE (basis: code evidence — only 8/62 files import i18n)
+Scope judgment: ALL work in scope (basis: impression — all renderer files use
+  these CSS tokens, but no grep was run; flagged as M confidence)
+```
+
+"Impression" basis → confidence must be `M` or lower. `H` confidence requires
+code evidence. This makes the subagent's epistemic state visible for user review.
+
 **Step 5 — Auto-write `when:` (always, no user confirmation)**
 
 Based on the file's content AND code exploration findings, write a `when:` statement
@@ -396,6 +424,11 @@ Present both tracks to the user.
 - User may change any Track A decision result
 - User may mark any row as deprecated
 - User may edit any `when:` statement (though auto-written values are usually correct)
+- **Frontmatter format replacement:** if a Track B KEEP file uses old-style
+  frontmatter (Cursor-style `description`/`globs`/`alwaysApply`) and you want
+  it converted to `paths: + when:`, mark `developer-action` as
+  `keep-with-notes: replace frontmatter format`. Phase 6 will rewrite the
+  frontmatter without treating this as a paths-removal conflict.
 
 **Presentation format:**
 
@@ -426,6 +459,16 @@ For each: confirm delete, or override to keep. If overriding, state reason.
 | ...  | ...  | ...                  | ...                | keep / delete |
 
 #### SKILL candidates (content scenario-specific, no file pattern captures trigger):
+
+⚠️ **What "skill" means for these files:**
+- The original rule file will be removed from your active context
+- Its content will be migrated into the new skill body under `## Context`; a
+  `## Steps` placeholder is added for skill-creator to develop
+- The skill description is derived from the rule's `when:` statement — treat it
+  as a **draft starting point**; trigger accuracy is not guaranteed until you run
+  skill-surgeon eval on it
+- If you choose `keep`, the file stays as-is (with `when:` added)
+
 For each: confirm migrate to Skill, or override to keep.
 | file | glob | why Skill | your decision |
 | ...  | ...  | ...       | keep / skill  |
@@ -443,6 +486,44 @@ follow up manually. No action required to proceed.
 
 ## Phase 6 — Execution
 
+### Protocol invariants — knowledge-gate, not user-override
+
+These invariants are **knowledge gates**: they ensure the user is aware of
+functional consequences before proceeding. They do NOT override user intent.
+
+**Priority rule:** user intent wins — but only after explicit, informed
+confirmation. If the user confirms knowing the consequence, execute and annotate
+the output with the consequence. If no confirmation, do not proceed.
+
+Before writing any file, verify these invariants hold. If a user instruction in
+Phase 5 conflicts with an invariant, surface the consequence and ask for
+confirmation before proceeding. Do NOT silently apply the user instruction. Do
+NOT block execution if the user confirms with awareness of the consequence.
+
+1. **Every KEEP path-rule file MUST have `paths:` + `when:` frontmatter.**
+
+   **Ambiguous case — format replacement intent:** If the user said "delete
+   frontmatter" or "remove paths:", first check whether they mean to replace an
+   OLD format (e.g., Cursor-style multi-field frontmatter with `description`,
+   `globs`, `alwaysApply`) with the NEW `paths: + when:` format. This is a
+   format replacement, not a removal — execute silently without confirmation.
+   Note in Phase 5 Optional adjustments: if your intent is to replace old-style
+   frontmatter rather than remove path-scoping entirely, annotate your
+   developer-action with `keep-with-notes: replace frontmatter format` to avoid
+   ambiguity here.
+
+   **Explicit removal case:** If the user clearly intends to remove `paths:`
+   entirely (not replace), surface: "Removing `paths:` means this rule will load
+   in every session unconditionally. Confirm, and I'll proceed with a note in the
+   output. Alternatively, is this better placed in CLAUDE.md?" If confirmed,
+   execute and annotate the written file with: `# NOTE: no paths: — loads
+   unconditionally in every session.`
+
+2. **No rule file may be written without `paths:` unless it is intentionally
+   global** (applies to all files in every session — a rare case that belongs in
+   CLAUDE.md instead). If the user explicitly confirms global intent, execute and
+   annotate as above.
+
 ### Track B Execution (path-rule files — execute first)
 
 For each Track B file with developer action confirmed:
@@ -453,8 +534,35 @@ Write is **overwrite** (Phase 1 cleared originals).
 
 **`delete`:** file is not written. Log to rebuild-progress.md as done/deleted.
 
-**`skill`:** write a Skill stub to `.claude/skills/<name>/SKILL.md` with frontmatter
-only. Notify user to complete with skill-creator.
+**`skill`:** write `.claude/skills/<name>/SKILL.md` with frontmatter AND the original
+rule file content migrated as a structured draft body:
+
+```yaml
+---
+name: <kebab-case>
+description: <≤15 words, derived from the rule's `when:` statement — treat as
+             draft starting point; validate trigger accuracy with skill-surgeon eval>
+---
+# DRAFT — migrated from .claude/rules/<source-file>.md
+# Run skill-creator to refine body and description; run skill-surgeon to validate
+# trigger accuracy before relying on this skill in production.
+
+## Context
+
+<original rule file content verbatim — serves as domain knowledge for this skill>
+
+## Steps
+
+<!-- TODO: flesh out ordered steps with skill-creator -->
+<!-- skill-creator will structure the procedure; the Context section above provides
+     the domain knowledge it needs to generate accurate steps. -->
+```
+
+Do NOT write an empty stub — knowledge must never go into limbo. The DRAFT label
+makes clear this is a starting point, not a finished skill. Tell the user: "Skill
+`<name>` created with migrated content. `## Context` contains the original rule;
+`## Steps` is a placeholder. Run skill-creator to develop the body, then
+skill-surgeon to validate trigger accuracy."
 
 ### Track A Execution (CLAUDE.md directives)
 
