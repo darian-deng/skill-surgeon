@@ -53,8 +53,10 @@ State persists in `.claude/rebuild-progress.md`. Three sections.
 
 ### ADR Table
 
-| ADR file | meets definition | covered by directive | replaceable by code comment | action | target path |
-|---|---|---|---|---|---|
+| ADR file | meets definition | covered by directive | replaceable by code comment | action | target path | consolidation-group |
+|---|---|---|---|---|---|---|
+
+`consolidation-group`: empty = independent ADR; a shared number (e.g., `1`, `2`) = consolidation candidate group. Filled only by Phase 7 Check 5 after all Check 0-4 assessments are complete.
 
 ### Status State Machine (Track A)
 
@@ -643,11 +645,29 @@ handle-one-directive rebuild-execute mode manually for each, then set `done`.
 
 Runs after Phase 6 is complete.
 
-For each ADR in the ADR table, apply four checks in order. Stop at first match.
+**Individual checks (Check 0-4): run in parallel across ADRs** — dispatch one
+subagent per ADR (or 2-3 small ADRs per subagent). Each subagent applies Check 0-4
+for its assigned ADRs and writes `action` to the table rows.
+
+**Check 5 (cross-ADR clustering): run serially after all Check 0-4 are complete**
+— reads the final `action` column to identify surviving ADRs.
+
+For each ADR, apply checks in order. Stop at first match.
+
+**Check 0 — Superseded?**
+Scan the ADR's `status` field for the pattern `Superseded by`. If found:
+- `action: deprecated (superseded)`
+- **Auto-move** the file to `./claude-context-backup/<adr-dir>/deprecated/` — no
+  user confirmation required.
+- Do not run Check 1-4 for this ADR.
 
 **Check 1 — Meets ADR definition?**
-Non-obvious architectural decision, trade-off analysis, would confuse future
-contributor without it? If no → `action: deprecated`.
+All three conditions must hold (from `writing-formats.md §ADR definition`):
+1. Hard to reverse (significant refactoring to change)
+2. Contrary to common industry practice or framework defaults
+3. Has a concrete rejected alternative with non-obvious rejection reason
+
+If any condition fails → `action: deprecated`.
 
 **Check 2 — Content covered by a Phase 6 directive?**
 Already captured in CLAUDE.md or path rule? → `action: deprecated (directive sufficient)`.
@@ -668,6 +688,24 @@ existing projects.
 
 **Deprecated ADRs:** move to `./claude-context-backup/<adr-dir>/deprecated/`.
 Do not delete permanently, do not leave in the active ADR directory.
+
+---
+
+### Phase 7 Global Post-processing
+
+**Check 5 — Cross-ADR semantic clustering** (runs after all Check 0-4 complete)
+
+Read the `action` column. Collect all ADRs where `action = valid` (Check 4 survivors).
+
+For each surviving ADR, read its **title only** (not the body). Group titles by
+decision domain using semantic similarity.
+
+For each group of 2+ ADRs with no formal supersede relationship:
+- Mark each with the same `consolidation-group` number in the ADR table
+- In Phase 7 output, list the group and suggest a consolidated title
+
+Present consolidation candidates to the user — do not auto-merge. Each group
+requires an explicit user decision (merge manually, or keep separate with a note).
 
 ---
 
@@ -734,4 +772,5 @@ rm .claude/rebuild-progress.md
 | Phase 4 Track A domain batches | Parallel (3-4 directives per subagent) |
 | Phase 6 Track B | Sequential per file (simple writes) |
 | Phase 6 Track A domain batches | Parallel (same batching as Phase 4) |
-| Phase 7 ADR checks | Sequential (one ADR at a time) |
+| Phase 7 Check 0-4 (individual ADR checks) | Parallel across ADRs (one subagent per ADR or 2-3 small ADRs per subagent) |
+| Phase 7 Check 5 (cross-ADR clustering) | Serial — requires all Check 0-4 `action` values to be final |

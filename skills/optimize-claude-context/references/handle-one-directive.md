@@ -106,15 +106,24 @@ Revert the config change and continue to Step 2.
 
 ## Step 2 — Check for Existing Directives
 
+First, discover ADR directories (skip in rebuild-execute mode — Phase 7 handles ADRs):
+
+```bash
+find . -type d \( -name "adr" -o -name "adrs" -o -name "decisions" \) \
+  -not -path "*/node_modules/*" \
+  -not -path "*/.git/*"
+```
+
 Scan project-level only (never `~/.claude/`):
 - `./CLAUDE.md`
 - `./.claude/rules/*.md`
 - `./.claude/skills/*/SKILL.md`
+- All discovered ADR directories — scan **Status, Title, and Context sections only**
 
 | Result | Action |
 |---|---|
 | New — no semantic overlap | Continue to Step 3 |
-| Merge — overlapping directive with less/different info | Combine; continue to Step 3 |
+| Merge — overlapping directive with less/different info | Combine; **record the source file path and layer** (e.g., `path-rule: .claude/rules/desktop.md`); continue to Step 3 |
 | Conflict — sources contradict | **Flag CONFLICT; surface to user; halt** |
 
 Conflict surface format:
@@ -167,6 +176,26 @@ use it as the starting point for enrichment.
 
 ## Step 5 — Write in Target Layer's Format
 
+**Pre-write: LAYER SPLIT check** (skip in rebuild-execute mode and when Step 2 result was New)
+
+If Step 2 recorded a merge source, compare its layer with the Step 3 routing target:
+
+- Same layer → proceed normally (no split risk).
+- Different layers → surface a warning before writing:
+
+```
+LAYER SPLIT WARNING
+  Existing coverage: <source-file> (<source-layer>)
+  New routing:       <target-file> (<Step 3 result layer>)
+
+  Options:
+  A. Merge into existing <source-layer> only — narrower scope; no additional coverage
+  B. Write to <target-layer> only (Step 3 result) — existing coverage may become redundant
+  C. Write to both — conscious duplication (not recommended)
+```
+
+Wait for user selection, then proceed accordingly.
+
 See `writing-formats.md` for complete specifications. Summary:
 
 ### CLAUDE.md
@@ -218,13 +247,33 @@ After writing: count words in description; confirm ≤15 words.
 
 ### ADR
 
-Create `./docs/adr/NNNN-<slug>.md` using the Nygard template from `writing-formats.md`.
+**If Step 2 found a semantically overlapping ADR**, present two options before writing:
+
+```
+ADR OVERLAP DETECTED
+  Existing: <adr-file-path> — "<title>"
+
+  A. Update in place (recommended): edit the existing ADR file directly.
+     Use when: the decision itself evolved and the old version no longer applies.
+     Note: git history preserves the prior reasoning.
+
+  B. New ADR + supersede: create a new ADR and mark the old one as superseded.
+     Use when: the old reasoning chain has independent value for future contributors
+     (e.g., compliance history, understanding why a simpler path was rejected).
+     Operation: add `status: "Superseded by [ADR-XXXX](NNNN-slug.md)"` to the old ADR.
+
+Select A or B, then proceed.
+```
+
+**If no overlapping ADR was found**, create a new file:
+
+`./docs/adr/NNNN-<slug>.md` using the Nygard template from `writing-formats.md`.
 In a monorepo, package-specific ADRs go in `<package>/docs/adr/NNNN-<slug>.md`.
 See `directive.md` for the authoritative ADR path convention.
 
 Assign the next sequential ADR number. Check existing ADRs to determine next number.
 
-Update or create `./docs/adr/README.md` index with the new entry.
+Update or create `./docs/adr/README.md` index with the new or updated entry.
 
 After writing: confirm Consequences section is non-empty.
 

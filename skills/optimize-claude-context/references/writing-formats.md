@@ -276,10 +276,28 @@ date: YYYY-MM-DD
   See `directive.md` for the authoritative path rule.
 - ADR number is zero-padded 4-digit, e.g., `0001`, `0042`.
 
+**Supersede status format (adr-tools standard):**
+
+When an ADR is superseded by a newer decision, update its `status` field:
+
+```yaml
+status: "Superseded by [ADR-0012](0012-new-decision.md)"
+```
+
+This exact format is required for rebuild Phase 7 Check 0 and audit sub-check 4
+to detect and automatically remove superseded ADRs from the active directory.
+
 **ADR definition:** a non-obvious architectural decision that required trade-off
-analysis. If someone reading the code could easily infer why a decision was made,
-it does not need an ADR. If the rationale would surprise or confuse a future
-contributor, it does.
+analysis — specifically, all three of the following must be true:
+1. **Hard to reverse**: changing this decision once embedded in the codebase
+   requires significant refactoring.
+2. **Contrary to common practice**: the decision goes against common industry
+   practice or framework defaults (verify with `tvly search` if uncertain).
+3. **Has a rejected alternative**: at least one concrete alternative was evaluated
+   and rejected, and the rejection reason is not obvious.
+
+If any of these is false, the rationale does not warrant an ADR. Use a code
+comment at the relevant location, or a CLAUDE.md rule if it is behavioral.
 
 ---
 
@@ -413,6 +431,6 @@ Audit scores each category 0-100. Deductions accumulate per finding.
 | Layer compliance | 25 | Wrong layer: -5 per item; stub skills never completed: -3 each |
 | Toolchain efficiency | 25 | Linter-enforceable directive in context: -5 per item; @import: -3 each; project-specific directive in `~/.claude/CLAUDE.md`: -5 each |
 | Content freshness | 25 | Stale reference: -5 per item; obsolete tool name: -3 each |
-| Format compliance | 25 | Missing `paths:` frontmatter: -5 per item; missing `when:` in path rule (`MISSING_WHEN`): -3 per item; description >15 words: -5; empty Consequences: -5; ADR fails definition (`ADR_INVALID`): -3; ADR content duplicated (`ADR_DUPLICATE`): -3; ADR replaceable by code comment (`ADR_REPLACEABLE`): -2 |
+| Format compliance | 25 | Missing `paths:` frontmatter: -5 per item; missing `when:` in path rule (`MISSING_WHEN`): -3 per item; description >15 words: -5; empty Consequences: -5; ADR fails definition (`ADR_INVALID`): -3; ADR content duplicated (`ADR_DUPLICATE`): -3; ADR replaceable by code comment (`ADR_REPLACEABLE`): -2; superseded ADR still in active directory (`ADR_SUPERSEDED_ORPHAN`): -2 per item; multiple ADRs covering same decision domain (`ADR_CONSOLIDATION`): -2 per group |
 
 Total score = sum of four category scores (0-100).

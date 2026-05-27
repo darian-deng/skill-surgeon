@@ -107,16 +107,34 @@ grep -r "<tool-name>" . --include="package.json" --include="*.toml" \
 
 For each ADR in the directories discovered in Step 1:
 
-1. Does it meet the ADR definition? (Non-obvious architectural decision with
-   trade-off rationale. Would a future contributor be confused without it?)
-2. Is the content already covered by a CLAUDE.md or path rule?
-3. Could it be replaced by a code comment at the relevant location?
+1. **Superseded orphan check**: does the ADR's `status` field contain `Superseded by`?
+   If yes → `ADR_SUPERSEDED_ORPHAN`. Record the finding; do not run checks 2-5 for this ADR.
+   (Auto-removal happens during rebuild Phase 7 Check 0, not during audit.)
+
+2. **Definition check**: does it meet the ADR definition from `writing-formats.md §ADR definition`?
+   All three must be true: (a) hard to reverse, (b) contrary to common practice, (c) has
+   a concrete rejected alternative. If any fails → `ADR_INVALID`. Note: condition (b) is
+   low-confidence for ADRs that align with industry practice — flag as M confidence, do not
+   auto-recommend deletion.
+
+3. **Duplicate check**: is the content already covered by a CLAUDE.md or path rule?
+   If yes → `ADR_DUPLICATE`.
+
+4. **Code comment check**: could it be replaced by a short inline comment at the relevant
+   code location? If yes → `ADR_REPLACEABLE`.
+
+5. **Cross-ADR consolidation check** (run once after processing all individual ADRs):
+   read the title of every valid ADR (not flagged by checks 1-4). Group titles by decision
+   domain. For each group of 2+ ADRs with no formal supersede relationship → `ADR_CONSOLIDATION`
+   (report the group together, not as individual findings).
 
 | Finding | Finding type |
 |---|---|
+| Superseded ADR still in active directory | `ADR_SUPERSEDED_ORPHAN` |
 | ADR fails definition check | `ADR_INVALID` |
 | ADR content duplicated in CLAUDE.md | `ADR_DUPLICATE` |
 | ADR replaceable by code comment | `ADR_REPLACEABLE` |
+| Multiple ADRs covering same decision domain | `ADR_CONSOLIDATION` |
 
 ### Step 6 — Global CLAUDE.md check
 
@@ -141,7 +159,7 @@ category definitions, per-finding deduction values, and score calculation formul
 | `WRONG_LAYER`, `STUB_INCOMPLETE` | Layer compliance |
 | `LINTER_GRADUATION`, `IMPORT_REF`, `GLOBAL_MISPLACED` | Toolchain efficiency |
 | `STALE` | Content freshness |
-| `INCOMPLETE_ADR`, `ADR_INVALID`, `ADR_DUPLICATE`, `ADR_REPLACEABLE`, `MISSING_PATHS`, `MISSING_WHEN`, `DESC_TOO_LONG` | Format compliance |
+| `INCOMPLETE_ADR`, `ADR_INVALID`, `ADR_DUPLICATE`, `ADR_REPLACEABLE`, `ADR_SUPERSEDED_ORPHAN`, `ADR_CONSOLIDATION`, `MISSING_PATHS`, `MISSING_WHEN`, `DESC_TOO_LONG` | Format compliance |
 
 ---
 
@@ -226,9 +244,11 @@ Audit produces findings only — it does not fix them. Each finding becomes inpu
 | `STUB_INCOMPLETE` | "Complete this skill stub using skill-creator: [paste skill name]" |
 | `DESC_TOO_LONG` | "Shorten this skill description to ≤15 words: [paste current description]" |
 | `IMPORT_REF` | "Remove @import from CLAUDE.md and inline or migrate: [paste @import line]" |
+| `ADR_SUPERSEDED_ORPHAN` | "Clean up this superseded ADR: run rebuild (Phase 7 auto-handles) or manually move `<adr-path>` to `<adr-dir>/deprecated/`." |
 | `ADR_INVALID` | "Deprecate this ADR — it does not meet the ADR definition: [paste ADR path]" |
 | `ADR_DUPLICATE` | "Deprecate this ADR — content already covered by CLAUDE.md directive: [paste both]" |
 | `ADR_REPLACEABLE` | "Replace this ADR with a code comment: [paste suggested comment]" |
+| `ADR_CONSOLIDATION` | "Consolidate these ADRs into one: [paste group titles and paths]" — handle manually or via handle-one-directive after merging content. |
 
 One call per finding. handle-one-directive runs the full decision tree and writes
 the fix.

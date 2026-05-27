@@ -71,17 +71,22 @@ Revert the config change and continue to Step 2.
 
 ## Step 2 — Check for Existing Directives
 
+First, discover ADR directories (for the exact command, see `handle-one-directive.md §Step 2`).
+Include all discovered directories in the scan below.
+
 Scan project-level context files only (never `~/.claude/`):
 - `./CLAUDE.md`
 - `./.claude/rules/*.md`
 - `./.claude/skills/*/SKILL.md`
+- All discovered ADR directories — scan **Status, Title, and Context sections only**
+  (do not read Consequences, Alternatives Considered, or full body)
 
 Search for semantic overlap — same domain, same intent — not just keyword matches.
 
 | Result | Action |
 |---|---|
 | **New** — no semantic overlap | Continue to Step 3 |
-| **Merge** — overlapping directive exists with less or different info | Combine; continue to Step 3 with merged directive |
+| **Merge** — overlapping directive exists with less or different info | Combine; **record the source file path and layer of the existing overlap** (used by Step 5 LAYER SPLIT check); continue to Step 3 with merged directive |
 | **Conflict** — sources contradict each other | Flag CONFLICT; surface to user; **halt** — do not write anything. Wait for user to resolve the conflict, then rerun from Step 2 with the resolved directive. |
 
 **Conflict surface format:**
@@ -109,8 +114,16 @@ Apply the layer selection rules in strict order. Stop at the first match.
 | 2 | scope=`root`, behavioral rule (must-always-do, applies every session) | **CLAUDE.md** |
 | 3 | scope=`<package-path>`, lookup / reference content | **Path rule** with `paths:` glob |
 | 3b | scope=`<package-path>`, content scenario-specific within glob scope AND no file pattern captures the trigger | **Skill** |
-| 4 | Explanatory rationale ("why we chose X over Y") | **ADR** |
+| 4 | Explanatory rationale ("why we chose X over Y") — **only if all three conditions hold** (see gate below) | **ADR** |
 | 5 | None of the above | deprecated |
+
+**Priority 4 gate — all three must be YES to route to ADR:**
+
+1. **Hard to reverse**: changing this decision once embedded in the codebase requires significant refactoring.
+2. **Contrary to common practice**: the decision goes against common industry practice or framework defaults. If uncertain, verify with `tvly search`.
+3. **Has a rejected alternative**: at least one concrete alternative was evaluated and rejected, with a non-obvious rejection reason.
+
+Any condition is NO → skip Priority 4; continue evaluating Priority 5.
 
 **Priority 1 condition explained:** a Skill stub without a body is a negative asset —
 it loads semantically but provides no guidance. If the procedure is already documented
@@ -151,8 +164,13 @@ cannot be reliably inferred from content alone.
 - If both a rule and its rationale exist: rule → CLAUDE.md, rationale → ADR.
   These are two separate directives.
 
-**Deprecated criteria:** content that is obsolete, superseded by code structure,
-or so generic that it adds no value (principle 6 from `writing-formats.md`).
+**Deprecated criteria — route here if any of the following are true:**
+- Applies only to a single specific initialization file or a one-off configuration
+  scenario that will not recur.
+- All value is context-dependent: a new session without knowledge of this specific
+  problem background gains no benefit from this directive.
+- Inferable from reading the relevant code's function signatures, comments, or
+  filenames, and that code is stable enough not to need external documentation.
 
 ---
 
