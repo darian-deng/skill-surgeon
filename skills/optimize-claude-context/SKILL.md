@@ -56,6 +56,7 @@ explain why, give the install command, wait for confirmation.
 | Command | Signals | Reference |
 |---|---|---|
 | **handle-one-directive** | "add a directive", "I want Claude to know X", "update this rule", "change this skill", "evaluate this", "remove this rule", "delete this directive", "这个要加进去", "帮 Claude 记住", "这条删掉", "废弃这个", or called by any external workflow in pre-parsed mode | [references/handle-one-directive.md](references/handle-one-directive.md) |
+| **assess-candidate** | called by Stage 4 implementer subagent after tests pass to assess a knowledge candidate; never called interactively by users | [references/assess-candidate.md](references/assess-candidate.md) |
 | **rebuild** | "rebuild", "重建", "reprocess everything", "context layer 重写", "start fresh with directives" | [references/rebuild-workflow.md](references/rebuild-workflow.md) |
 | **audit** | "audit", "health check", "评分", "score my context", "what's wrong with my CLAUDE.md", "how good is my context" | [references/audit-workflow.md](references/audit-workflow.md) |
 
