@@ -273,7 +273,8 @@ See `directive.md` for the authoritative ADR path convention.
 
 Assign the next sequential ADR number. Check existing ADRs to determine next number.
 
-Update or create `./docs/adr/README.md` index with the new or updated entry.
+Update or create the `README.md` index in the **same directory where the ADR was written**
+(e.g., `<package>/docs/adr/README.md` for package-specific ADRs, not `./docs/adr/README.md`).
 
 After writing: confirm Consequences section is non-empty.
 
@@ -290,6 +291,7 @@ Run these checks after every write, regardless of mode:
 | Path rule | `when:` frontmatter present | `head -6 .claude/rules/<file>.md` |
 | Skill | description ≤ 15 words | count words in description field |
 | ADR | Consequences non-empty | read Consequences section |
+| ADR | README.md index updated in same directory | `grep "<adr-number>" <adr-dir>/README.md` |
 | Any | File actually created/modified | `ls -la <target-path>` |
 
 ---

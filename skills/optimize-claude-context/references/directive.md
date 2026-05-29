@@ -42,7 +42,8 @@ toolchain to evaluate during the linter feasibility check.
 - `root` directives target the repo-level CLAUDE.md or repo-level linter configs.
 - `<package-path>` directives target that package's `.claude/rules/` path rule or
   that package's linter config.
-- ADRs always live at `<project-root>/docs/adrs/` regardless of monorepo structure.
+- In a monorepo, project-wide ADRs go in `<project-root>/docs/adr/`; package-specific
+  ADRs go in `<package>/docs/adr/`. See the ADR path convention below.
 
 ---
 
