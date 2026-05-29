@@ -7,7 +7,7 @@ user use** — use `handle-one-directive` for that.
 Key difference from `handle-one-directive`:
 - No conflict detection (deferred to Stage 6)
 - No code enrichment (implementer is already in the code)
-- Does NOT write to context files — records routing decision to task report only
+- Does NOT write to context files — returns the routing decision to the calling stage, which decides how to record it
 - Linter graduation is the one exception: lint config CAN be written immediately
 
 ---
@@ -18,7 +18,7 @@ First question: "Can a code comment at this specific location fully explain this
 
 | Result | Action |
 |---|---|
-| YES — file header, block, or inline comment suffices | Write the comment; record in `INLINE_COMMENTS_ADDED`; **stop** |
+| YES — file header, block, or inline comment suffices | Write the comment; report the comment location to the caller; **stop** |
 | NO — knowledge spans files, affects future code, or has rejected alternatives | Continue to Step 1 |
 
 ---
@@ -32,7 +32,7 @@ and cite the official documentation URL. If not, say 'not enforceable'."
 
 | Result | Action |
 |---|---|
-| Valid config + citation produced | **Graduate immediately**: modify lint config, run linter to verify; record as linter-graduated in `INLINE_COMMENTS_ADDED`; **stop** |
+| Valid config + citation produced | **Graduate immediately**: modify lint config, run linter to verify; report the linter graduation (rule + location) to the caller; **stop** |
 | Not enforceable | Continue to Step 2 |
 
 Linter graduation is the only write to project files that happens in Stage 4.
@@ -64,38 +64,19 @@ ADR gate — all three must be YES:
 
 ---
 
-## Step 3: Record in Task Report
+## Step 3: Return the Decision to the Caller
 
-Append the routing decision to the current task's section in `task-reports.md`.
-**Do NOT write to CLAUDE.md, rules, or ADR files.**
+**Do NOT impose a record format and do NOT write to CLAUDE.md, rules, or ADR files.**
+Return the routing decision to the calling stage; the caller decides how and where to record it.
 
-### For ADR_CANDIDATES routing:
+For each candidate, return:
 
-```
-### ADR_CANDIDATES
-- [one-line decision title]: [trade-off rationale; what alternative was rejected and why]
-  Source: [file:line where decision is visible in code]
-```
+- **Target layer**: `Skill` | `Path rule` | `CLAUDE.md` | `ADR` | `deprecated`
+- **Rationale**: why this layer. For an ADR target, include the trade-off + which alternative was rejected and why.
+- **Source**: `file:line` where the decision / term is visible in code.
+- For a naming / term candidate: the term + what it means + suggested layer.
 
-### For CONTEXT_CANDIDATES routing:
-
-```
-### CONTEXT_CANDIDATES
-- `rules/<domain>.md`: [description of constraint + source file:line]
-- `CLAUDE.md`: [global behavioral rule description]
-- `skill`: [procedure name + what it does]
-```
-
-### For NEW_TERMS_OR_PATTERNS routing (naming conventions, new terms):
-
-```
-### NEW_TERMS_OR_PATTERNS
-- [term]: [what it means, suggested layer: rules/<domain>.md or CLAUDE.md]
-```
-
-### For deprecated routing:
-
-Do not record. Silently discard — the candidate has no context-layer value.
+`deprecated` → return "no context-layer value"; the caller discards it.
 
 ---
 
