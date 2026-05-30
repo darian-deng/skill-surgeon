@@ -232,6 +232,12 @@ Monorepo layout example:
   └── shared.md     ← paths: "packages/shared/**"
 ```
 
+**"Cross-cutting" means across packages, not across modules within a package.**
+A decision that affects multiple runtimes or modules *inside the same package* is
+still package-scope. Example: an Electron app with main process + renderer process,
+both within `apps/plaud-desktop/` — scope is `apps/plaud-desktop/`, not `root`.
+Only `root` when the decision genuinely spans two or more separate packages.
+
 Global `~/.claude/CLAUDE.md` is never modified by this skill. If a project-specific
 directive is found there during rebuild or audit, flag it for manual removal.
 

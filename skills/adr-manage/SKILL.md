@@ -36,7 +36,12 @@ description: 管理项目的 Architecture Decision Records (ADR)：新建、supe
 | new / supersede / index / list / grep | `docs/adr/` 目录存在？不存在 → 提示用户先调 bootstrap |
 | bootstrap | `docs/adr/` 已存在？已存在 → 提示用户改用 index 重建 |
 
-`docs/adr/` 路径**始终是仓库根目录下**，无论是否 monorepo，无论改动涉及哪个子目录。固定路径避免认知歧义——ADR 记录的是项目级决策，不是包级决策。
+`docs/adr/` 路径遵循以下规则：
+- **根级决策**（跨多个 package 的 cross-cutting 决策）→ `<repo-root>/docs/adr/`
+- **包级决策**（只影响单个 package 的决策）→ `<package>/docs/adr/`（如 `apps/plaud-desktop/docs/adr/`）
+- 判断依据：改动的 applicable-paths 是否跨越多个独立 package 目录？是 → 根级；否 → 包级
+
+**monorepo 注意**：「影响同一 package 内的多个模块（如 Electron 主进程 + 渲染进程）」仍属于包级决策，不是根级。只有真正跨 package 才放根级。
 
 ---
 
@@ -53,9 +58,10 @@ description: 管理项目的 Architecture Decision Records (ADR)：新建、supe
    - **Decision**（选择是什么，具体到方案 / pattern / 库 / 接口形状）
    - **Consequences**（带来的后果，含 positive + negative + neutral）
    - **Alternatives Considered**（考虑过的其他方案 + 为什么没选）
-3. 读 `templates/adr-nygard.md` 模板 → 填入上面字段
-4. 写文件到 `docs/adr/NNNN-<title-slug>.md`（slug = title 转 kebab-case，仅 a-z/0-9/dash）
-5. **自动执行 index 子能力重建索引**
+3. 确定目标目录：根级决策 → `docs/adr/`；包级决策 → `<package>/docs/adr/`（参见第二步的路径规则）
+4. 读 `templates/adr-nygard.md` 模板 → 填入上面字段
+5. 写文件到 `<target-dir>/NNNN-<title-slug>.md`（slug = title 转 kebab-case，仅 a-z/0-9/dash）
+6. **自动执行 index 子能力重建索引**（目标目录下的 README.md）
 
 ### supersede（用新 ADR 替代旧 ADR）
 
@@ -68,11 +74,12 @@ description: 管理项目的 Architecture Decision Records (ADR)：新建、supe
 
 ### index（重建索引）
 
-1. 扫描 `docs/adr/*.md` 所有 ADR 文件
-2. 解析每个文件 header 提取：编号 / Title / Status / Date / Supersedes / Superseded by
-3. 读 `references/index-format.md` 拿到表格格式规范
-4. 重写 `docs/adr/README.md` 的索引表（按编号升序）
-5. 保留 README.md 头部说明文字（不要覆盖整个文件）
+1. 确定目标目录（用户指定，或根据上下文判断是根级还是包级 `docs/adr/`）
+2. 扫描目标目录 `*.md` 所有 ADR 文件
+3. 解析每个文件 header 提取：编号 / Title / Status / Date / Supersedes / Superseded by
+4. 读 `references/index-format.md` 拿到表格格式规范
+5. 重写目标目录下 `README.md` 的索引表（按编号升序）
+6. 保留 README.md 头部说明文字（不要覆盖整个文件）
 
 ### list（按状态列出）
 
@@ -88,10 +95,11 @@ description: 管理项目的 Architecture Decision Records (ADR)：新建、supe
 
 ### bootstrap（项目从零初始化）
 
-1. 创建 `docs/adr/` 目录
-2. 读 `templates/readme-template.md` → 写入 `docs/adr/README.md`（含使用说明 + 空索引表）
-3. 读 `templates/meta-adr.md` → 写入 `docs/adr/0000-record-architecture-decisions.md`（meta ADR：why we use ADRs）
-4. 提示用户：「ADR 体系已初始化。后续新决策可继续调用本 skill 添加。」
+1. 询问或推断目标目录：根级决策目录（`docs/adr/`）还是包级目录（`<package>/docs/adr/`）
+2. 创建目标目录
+3. 读 `templates/readme-template.md` → 写入目标目录下 `README.md`（含使用说明 + 空索引表）
+4. 仅根级 bootstrap 时：读 `templates/meta-adr.md` → 写入 `0000-record-architecture-decisions.md`（meta ADR）
+5. 提示用户：「ADR 体系已初始化。后续新决策可继续调用本 skill 添加。」
 
 ### clarify（意图反问）
 

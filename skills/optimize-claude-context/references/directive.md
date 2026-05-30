@@ -45,6 +45,14 @@ toolchain to evaluate during the linter feasibility check.
 - In a monorepo, project-wide ADRs go in `<project-root>/docs/adr/`; package-specific
   ADRs go in `<package>/docs/adr/`. See the ADR path convention below.
 
+**Monorepo scope edge case — "cross-cutting" means across packages, not across modules:**
+A decision that affects multiple modules or runtimes *within the same package* is
+still `<package-path>` scope, not `root`. Example: an Electron app where both the
+main process and renderer process (both inside `apps/plaud-desktop/`) are affected by
+a decision — scope is `apps/plaud-desktop/`, not `root`. Only route to `root` when
+the decision genuinely affects two or more separate packages (e.g.
+`packages/native-recorder/` **and** `apps/plaud-desktop/`).
+
 ---
 
 ## The Four Layers
