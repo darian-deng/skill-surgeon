@@ -87,6 +87,7 @@ Eval results go in `<skill-name>-workspace/` as a sibling to the skill directory
 
 | Skill | Purpose |
 |---|---|
+| `grounded-design` | Turn a requirement into a grounded technical design — investigate first, three-way classify (finding / ask-developer / assumption), no fabricated options |
 | `optimize-claude-context` | Audit and restructure CLAUDE.md / rules / skills to minimize context bloat |
 | `adr-manage` | Create, supersede, index, list, and search Architecture Decision Records |
 | `skill-surgeon` | Safe surgical updates to skill files + full eval/optimization pipeline for skill creation |

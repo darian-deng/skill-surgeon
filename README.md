@@ -21,6 +21,34 @@ npx skills add darian-deng/agent-skills --skill <skill-name> -g -y
 
 ## Skills
 
+### 🧭 grounded-design
+
+**把一句话需求拆解成一份接地的详细技术方案 —— 先查清能查的,只问开发者真正只有他知道的。**
+
+**Turn a one-line requirement into a grounded technical design — investigate what's knowable first, ask only what only the developer knows.**
+
+| | |
+|---|---|
+| **Trigger** | 需求拆解, 技术方案, 把需求变成设计, scope the work, grill my plan, turn requirement into design |
+| **Install** | `npx skills add darian-deng/agent-skills --skill grounded-design -g -y` |
+
+#### The Problem / 问题背景
+
+通用的审讯式提问 skill(如 grill-me)会**凭训练数据印象编选项**:面对「CLI 事件 sessionId 怎么填」,它列出「读 last_session_id」这种选项——而代码里早已做好多 session 保护,这个选项压根不该存在。根因是「能查代码就查」只是一句可选的、被动的提示,模型跳过了。
+
+A generic interrogation skill fabricates options from training-data impressions instead of reading the code first — surfacing choices that don't exist because the codebase already settled them.
+
+#### The Solution / 解决方案
+
+- **接地优先(硬规则)**:提第一个问题前,必须先输出一份带来源(`file:line`)的《现状理解》,没有它不得提问 —— 把「先探索」从训诫变成可见的事前 gate。
+- **三分类**:每个待定点归为 `finding`(查清的事实,陈述不提问)/ `问开发者`(只有他知道的意图)/ `假设`(接不了地的空白,标默认值 + 猜错后果)。不用置信度数字。
+- **铁律**:事实型 / 技术型的选项或推荐,凭印象就禁止呈现;纯产品意图问题用开放式提问、不编选项。
+- **选择性呈现**:finding 只在决策相关 / 可争议 / 带风险时拿出,其余静默记录,不淹没开发者。
+
+通用 skill,不绑定产物格式 —— 产物格式由调用方指定。
+
+---
+
 ### 🎯 optimize-claude-context
 
 **Manage your Claude Code context layer — CLAUDE.md, rules, and skills — so every token earns its place.**
