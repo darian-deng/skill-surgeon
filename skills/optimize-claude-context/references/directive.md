@@ -80,6 +80,11 @@ Apply in this strict order:
 | Explanatory rationale ("why we chose X") | **ADR** |
 | None of the above | deprecated |
 
+**Deprecation is a gate, not a fallthrough.** Whether a directive earns a layer at all
+is decided up front by the Persistence Gate (`decision-tree.md` Step 3.0). The table
+above only chooses *which* layer for directives that already cleared the gate; "None of
+the above → deprecated" is a rare safety net, not the main filter.
+
 **Key tiebreaker:** multi-step procedure → Skill, regardless of scope. A
 cross-cutting procedure that applies to all packages is still a Skill, not CLAUDE.md.
 

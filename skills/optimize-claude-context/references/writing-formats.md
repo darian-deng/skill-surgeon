@@ -428,7 +428,7 @@ Audit scores each category 0-100. Deductions accumulate per finding.
 
 | Category | Max score | Key deductions |
 |---|---|---|
-| Layer compliance | 25 | Wrong layer: -5 per item; stub skills never completed: -3 each |
+| Layer compliance | 25 | Fails Persistence Gate / litmus test (`FAILS_LITMUS`, belongs in no layer): -3 per item (judgment-based, like `ADR_INVALID`); wrong layer: -5 per item; stub skills never completed: -3 each |
 | Toolchain efficiency | 25 | Linter-enforceable directive in context: -5 per item; @import: -3 each; project-specific directive in `~/.claude/CLAUDE.md`: -5 each |
 | Content freshness | 25 | Stale reference: -5 per item; obsolete tool name: -3 each |
 | Format compliance | 25 | Missing `paths:` frontmatter: -5 per item; missing `when:` in path rule (`MISSING_WHEN`): -3 per item; description >15 words: -5; empty Consequences: -5; ADR fails definition (`ADR_INVALID`): -3; ADR content duplicated (`ADR_DUPLICATE`): -3; ADR replaceable by code comment (`ADR_REPLACEABLE`): -2; superseded ADR still in active directory (`ADR_SUPERSEDED_ORPHAN`): -2 per item; multiple ADRs covering same decision domain (`ADR_CONSOLIDATION`): -2 per group |

@@ -52,18 +52,28 @@ Record file count and line counts.
 ### Step 2 — Per-directive layer check
 
 For each directive in each file, apply the decision tree (Steps 0-3 from
-`decision-tree.md`) **without writing anything**. Compare the actual layer to
-the decision tree result.
+`decision-tree.md`) **without writing anything**. The Persistence Gate (Step 3.0)
+runs first: a directive that fails the litmus test does not belong in *any* layer —
+this catches existing junk that was written before the gate existed, which
+`WRONG_LAYER` (mere misplacement) cannot. Only if it clears the gate, compare the
+actual layer to the decision tree result.
 
 | Actual vs. expected | Finding type |
 |---|---|
-| Matches decision tree | — |
-| In wrong layer | `WRONG_LAYER` |
+| Fails the Persistence Gate (litmus test: no concrete mistake its absence would cause) | `FAILS_LITMUS` |
+| Clears gate, matches decision tree layer | — |
+| Clears gate, in wrong layer | `WRONG_LAYER` |
 | Skill description > 15 words | `DESC_TOO_LONG` |
 | Rule missing `paths:` frontmatter | `MISSING_PATHS` |
 | Path rule missing `when:` field | `MISSING_WHEN` |
 | ADR with empty Consequences | `INCOMPLETE_ADR` |
 | Stub skill never completed | `STUB_INCOMPLETE` |
+
+**`FAILS_LITMUS` judgment:** apply the same restraint as `writing-formats.md` principle 14 —
+a rule that looks odd but encodes a real incident PASSES the litmus test (removing it
+re-introduces a nameable bug). Flag `FAILS_LITMUS` only for generic best practice,
+code-inferable content, or one-off items. When in doubt, flag at L confidence and let
+the user decide; never auto-delete.
 
 **`MISSING_WHEN` judgment:** a path-rule without `when:` is flagged regardless of glob
 width. A broad package-root glob (`apps/X/**`) is NOT a problem — the issue is the
@@ -156,7 +166,7 @@ category definitions, per-finding deduction values, and score calculation formul
 
 | Finding type | Category |
 |---|---|
-| `WRONG_LAYER`, `STUB_INCOMPLETE` | Layer compliance |
+| `FAILS_LITMUS`, `WRONG_LAYER`, `STUB_INCOMPLETE` | Layer compliance |
 | `LINTER_GRADUATION`, `IMPORT_REF`, `GLOBAL_MISPLACED` | Toolchain efficiency |
 | `STALE` | Content freshness |
 | `INCOMPLETE_ADR`, `ADR_INVALID`, `ADR_DUPLICATE`, `ADR_REPLACEABLE`, `ADR_SUPERSEDED_ORPHAN`, `ADR_CONSOLIDATION`, `MISSING_PATHS`, `MISSING_WHEN`, `DESC_TOO_LONG` | Format compliance |
@@ -234,6 +244,7 @@ Audit produces findings only — it does not fix them. Each finding becomes inpu
 
 | Finding | What to tell handle-one-directive |
 |---|---|
+| `FAILS_LITMUS` | "Remove this directive — its absence causes no concrete mistake (generic best practice / inferable from code / one-off): [paste directive text]". Confirm with the user before deleting; never auto-delete. |
 | `WRONG_LAYER` | "Move this directive to the correct layer: [paste directive text]" |
 | `LINTER_GRADUATION` | "Graduate this to the linter: [paste config + citation]" |
 | `STALE` | "Update this stale directive: [paste updated version]" or "Remove this stale directive: [paste text]" |

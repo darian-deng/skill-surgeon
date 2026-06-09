@@ -140,7 +140,9 @@ CONFLICT detected
 
 ## Step 3 — Layer Routing
 
-Apply the full priority table from `decision-tree.md` Step 3:
+**First clear the Persistence Gate (`decision-tree.md` Step 3.0)** — discard any
+directive that fails the litmus test (no concrete mistake its absence would cause);
+do **not** route it. Then apply the full priority table from `decision-tree.md` Step 3:
 
 | Priority | Condition | Target |
 |---|---|---|

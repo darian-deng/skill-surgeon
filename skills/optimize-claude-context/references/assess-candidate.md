@@ -42,6 +42,12 @@ All other writes are deferred to Stage 6.
 
 ## Step 2: Layer Routing (No Conflict Detection)
 
+**Persistence Gate first (`decision-tree.md` Step 3.0)** — a candidate that fails the
+litmus test → return `deprecated` (the caller discards it); do not route it. Distinct
+from the Pre-Step: the Pre-Step keeps the knowledge *as a code comment*; the gate
+discards it entirely. You are already in the code, so the gate's "inferable from stable
+code" check is well-grounded here.
+
 Apply the routing priority table from `decision-tree.md` Step 3.
 
 **Deliberately skip conflict detection.** Stage 4 operates per-task with isolated

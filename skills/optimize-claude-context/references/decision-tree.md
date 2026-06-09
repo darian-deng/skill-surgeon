@@ -105,6 +105,54 @@ existing directives.
 
 ## Step 3 — Layer Routing
 
+### Step 3.0 — Persistence Gate (clear this BEFORE the priority table)
+
+The priority table routes a directive to a layer. But P2/P3 have near-zero quality
+bar — almost any sentence can be phrased as "a behavioral rule" (P2) or "lookup
+content" (P3), so a directive will *always* find a home there if you let it reach
+the table. Ask first whether it earns a place at all.
+
+**The gate is one counterfactual test** (the litmus test, `writing-formats.md` principle 13):
+
+> Remove this directive. Will a future Claude session — with no memory of this
+> task — make a **concrete mistake** it would not otherwise make?
+
+To clear the gate you must be able to **name that specific mistake**. "It's good
+advice" / "it's useful" / "it's a best practice" is not a mistake — it is
+rationalization, and it is exactly how junk reaches CLAUDE.md. If you cannot name a
+concrete error the directive's absence would cause, it does **not** clear the gate.
+
+A NO on the litmus test almost always shows up as one of these — use them to check
+yourself, not as separate hurdles:
+
+- **Generic best practice** — "write clean code", "handle errors gracefully", "follow
+  DRY". Claude already does these unprompted (`writing-formats.md` principle 6); removing them
+  causes no mistake. → fails.
+- **Inferable from stable code** — an engineer reading the relevant signatures, types,
+  comments, and filenames would already know it; the code itself prevents the mistake.
+  → fails. (If you have not looked at that code yet, look **now** — do not guess. This
+  is a quick targeted read, not the full Step 4 enrichment.)
+- **One-off / non-recurring** — applies only to a single setup step or a temporary
+  workaround that will not recur; its absence causes no *future* mistake. → fails.
+
+**The litmus test KEEPS failure-driven rules** (`writing-formats.md` principle 14): a rule
+that looks odd but encodes a real incident — "don't add event handlers when the framework
+manages reactivity" — clears the gate, because removing it, Claude *would* re-introduce
+that bug (a nameable mistake). The incident is the *why*; the portable prohibition
+("don't do X") is what a memory-less session acts on, so it is NOT "you had to be there."
+
+| Result | Action |
+|---|---|
+| Cannot name a concrete mistake its absence would cause | **Do not route.** → discard (deprecated). |
+| Can name the mistake | Continue to the priority table below |
+
+When genuinely uncertain, the directive does **not** clear the gate (`writing-formats.md`
+principle 13: "if unsure → cut it"). A junk line in CLAUDE.md loads every session forever; a junk
+path rule loads on every glob match. That standing cost outweighs dropping a marginal
+candidate — which can always be re-added later if it proves to matter.
+
+### Priority table (only for directives that cleared the gate)
+
 Apply the layer selection rules in strict order. Stop at the first match.
 
 | Priority | Condition | Target layer |
@@ -115,7 +163,7 @@ Apply the layer selection rules in strict order. Stop at the first match.
 | 3 | scope=`<package-path>`, lookup / reference content | **Path rule** with `paths:` glob |
 | 3b | scope=`<package-path>`, content scenario-specific within glob scope AND no file pattern captures the trigger | **Skill** |
 | 4 | Explanatory rationale ("why we chose X over Y") — **only if all three conditions hold** (see gate below) | **ADR** |
-| 5 | None of the above | deprecated |
+| 5 | None of the above (rare — a gate-passing directive almost always fits P2 or P3; if you land here, re-check the gate and scope rather than silently dropping) | deprecated |
 
 **Priority 4 gate — all three must be YES to route to ADR:**
 
@@ -164,13 +212,17 @@ cannot be reliably inferred from content alone.
 - If both a rule and its rationale exist: rule → CLAUDE.md, rationale → ADR.
   These are two separate directives.
 
-**Deprecated criteria — route here if any of the following are true:**
+**Deprecation is decided by the Persistence Gate (Step 3.0), not by the priority table.**
+A directive that fails the litmus test is deprecated *before* routing runs — it never
+reaches P1–P5. The historical deprecated criteria are just the common ways the litmus
+test comes back NO:
 - Applies only to a single specific initialization file or a one-off configuration
-  scenario that will not recur.
+  scenario that will not recur — its absence causes no future mistake.
 - All value is context-dependent: a new session without knowledge of this specific
-  problem background gains no benefit from this directive.
+  problem background gains no benefit — no nameable mistake is prevented.
 - Inferable from reading the relevant code's function signatures, comments, or
-  filenames, and that code is stable enough not to need external documentation.
+  filenames, and that code is stable enough not to need external documentation — the
+  code already prevents the mistake.
 
 ---
 
